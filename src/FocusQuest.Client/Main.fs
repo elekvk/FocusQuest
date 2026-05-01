@@ -200,9 +200,9 @@ let menuItem (model: Model) (page: Page) (text: string) =
 let view model dispatch =
     Main()
         .Menu(concat {
-            menuItem model Home "Home"
-            menuItem model Counter "Counter"
-            menuItem model Data "Download data"
+            menuItem model Home "Dashboard"
+            menuItem model Counter "Focus Session"
+            menuItem model Data "Stats"
         })
         .Body(
             cond model.page <| function

@@ -1,17 +1,76 @@
-#counter {
-  width: 80px;
+/* ===== FocusQuest RPG UI ===== */
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #0f172a, #020617);
+  color: #e5e7eb;
+  font-family: Segoe UI, sans-serif;
 }
 
-#notification-area {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+.fq-app {
+  padding: 40px;
 }
 
-#notification-area > div {
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  margin-bottom: 5px;
+.fq-header {
+  margin-bottom: 30px;
+}
+
+.fq-title {
+  font-size: 42px;
+  font-weight: 900;
+  color: #38bdf8;
+}
+
+.fq-subtitle {
+  color: #c084fc;
+  font-size: 18px;
+}
+
+.fq-nav button {
+  margin-right: 10px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  background: #1e293b;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.fq-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.fq-xp-bar {
+  height: 14px;
+  background: #334155;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.fq-xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #38bdf8);
+}
+
+.fq-quest {
+  margin-top: 15px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+}
+
+.fq-button {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(90deg, #7c3aed, #06b6d4);
+  color: white;
+  cursor: pointer;
 }

@@ -3,12 +3,11 @@ module FocusQuest.Client.Main
 open Elmish
 open Bolero
 open Bolero.Html
-open Bolero.Templating.Client
 
 type Page =
     | [<EndPoint "/">] Home
-    | [<EndPoint "/counter">] Counter
-    | [<EndPoint "/data">] Data
+    | [<EndPoint "/focus">] Focus
+    | [<EndPoint "/stats">] Stats
 
 type Difficulty =
     | Easy
@@ -29,6 +28,7 @@ type Player =
         xp: int
         level: int
     }
+
 type Book =
     {
         title: string
@@ -56,7 +56,6 @@ type Model =
         focusMinutes: int
         player: Player
         quests: Quest list
-        error: string option
     }
 
 let initModel =
@@ -68,17 +67,15 @@ let initModel =
             [
                 { title = "Tanulás 30 perc"; duration = 30; difficulty = Easy; completed = false }
                 { title = "Gyakorlás 60 perc"; duration = 60; difficulty = Medium; completed = false }
+                { title = "Projektmunka 45 perc"; duration = 45; difficulty = Hard; completed = false }
             ]
-        error = None
     }
 
 type Message =
     | SetPage of Page
     | IncreaseFocusTime
     | DecreaseFocusTime
-    | SetFocusTime of int
     | CompleteQuest of string
-    | ClearError
 
 let xpForDifficulty difficulty =
     match difficulty with
@@ -95,19 +92,14 @@ let update message model =
         { model with focusMinutes = model.focusMinutes + 5 }, Cmd.none
 
     | DecreaseFocusTime ->
-        let newValue = max 5 (model.focusMinutes - 5)
-        { model with focusMinutes = newValue }, Cmd.none
-
-    | SetFocusTime value ->
-        { model with focusMinutes = max 5 value }, Cmd.none
+        { model with focusMinutes = max 5 (model.focusMinutes - 5) }, Cmd.none
 
     | CompleteQuest title ->
-        let quest =
-            model.quests
-            |> List.tryFind (fun q -> q.title = title)
+        let selectedQuest =
+            model.quests |> List.tryFind (fun q -> q.title = title)
 
         let gainedXp =
-            match quest with
+            match selectedQuest with
             | Some q when not q.completed -> xpForDifficulty q.difficulty
             | _ -> 0
 
@@ -128,107 +120,190 @@ let update message model =
             player = { model.player with xp = newXp; level = newLevel } },
         Cmd.none
 
-    | ClearError ->
-        { model with error = None }, Cmd.none
-
 let router = Router.infer SetPage (fun model -> model.page)
 
-type Main = Template<"wwwroot/main.html">
+let buttonStyle active =
+    if active then
+        "margin-right:10px; padding:10px 16px; border-radius:10px; border:none; background:#2563eb; color:white; cursor:pointer; font-weight:700;"
+    else
+        "margin-right:10px; padding:10px 16px; border-radius:10px; border:none; background:#1e293b; color:white; cursor:pointer; font-weight:700;"
+
+let statBox title value =
+    div {
+        attr.style "background:#1e293b; border:1px solid #334155; border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.35);"
+        h3 {
+            attr.style "color:#38bdf8; margin-top:0;"
+            text title
+        }
+        p {
+            attr.style "font-size:26px; font-weight:800; margin-bottom:0;"
+            text value
+        }
+    }
 
 let homePage model dispatch =
-    div {
-        h1 { "FocusQuest" }
-        h2 { "Level Up Your Focus" }
+    let requiredXp = model.player.level * 100
 
-        div {
-            h3 { $"Player: {model.player.name}" }
-            p { $"Level: {model.player.level}" }
-            p { $"XP: {model.player.xp}" }
+    let xpPercent =
+        (float model.player.xp / float requiredXp) * 100.0
+        |> min 100.0
+
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:48px; font-weight:900; color:#38bdf8; margin-bottom:5px;"
+            text "FocusQuest"
         }
 
-        h3 { "Today’s Quests" }
+        h2 {
+            attr.style "font-size:22px; color:#c084fc; margin-top:0; margin-bottom:30px;"
+            text "Level Up Your Focus"
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            statBox "Player" model.player.name
+            statBox "Level" (string model.player.level)
+            statBox "XP" (string model.player.xp + " / " + string requiredXp)
+        }
+
+        div {
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; margin-bottom:24px;"
+            h3 {
+                attr.style "margin-top:0; color:#facc15;"
+                text "XP Progress"
+            }
+
+            div {
+                attr.style "height:16px; background:#334155; border-radius:999px; overflow:hidden;"
+                div {
+                    attr.style ("height:100%; width:" + string xpPercent + "%; background:linear-gradient(90deg,#22c55e,#38bdf8);")
+                }
+            }
+        }
+
+        h3 {
+            attr.style "font-size:26px; color:#facc15;"
+            text "Today’s Quests"
+        }
 
         for quest in model.quests do
             div {
-                attr.``class`` "box"
+                attr.style "background:#0f172a; border:1px solid #334155; border-radius:16px; padding:22px; margin-top:18px; box-shadow:0 8px 20px rgba(0,0,0,0.35);"
 
-                h4 { quest.title }
-                p { $"Duration: {quest.duration} minutes" }
-                p { $"Difficulty: {quest.difficulty}" }
+                h4 {
+                    attr.style "font-size:22px; color:#38bdf8; margin-top:0;"
+                    text quest.title
+                }
+
+                p { text ("Duration: " + string quest.duration + " minutes") }
+                p { text ("Difficulty: " + string quest.difficulty) }
+
                 p {
-                    if quest.completed then "Status: Completed"
-                    else "Status: Open"
+                    if quest.completed then text "Status: Completed"
+                    else text "Status: Open"
                 }
 
                 if not quest.completed then
                     button {
-                        attr.``class`` "button is-primary"
+                        attr.style "background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; border:none; border-radius:10px; padding:10px 18px; font-weight:700; cursor:pointer;"
                         on.click (fun _ -> dispatch (CompleteQuest quest.title))
-                        "Complete Quest"
+                        text "Complete Quest"
                     }
             }
     }
 
-let counterPage model dispatch =
-    Main.Counter()
-        .Decrement(fun _ -> dispatch DecreaseFocusTime)
-        .Increment(fun _ -> dispatch IncreaseFocusTime)
-        .Value(model.focusMinutes, fun v -> dispatch (SetFocusTime v))
-        .Elt()
+let focusPage model dispatch =
+    div {
+        attr.style "padding:40px;"
 
-let dataPage model dispatch =
-    Main.Data()
-        .Reload(fun _ -> ())
-        .Username(model.player.name)
-        .SignOut(fun _ -> ())
-        .Rows(
-            concat {
-                for quest in model.quests do
-                    tr {
-                        td { quest.title }
-                        td { string quest.duration + " perc" }
-                        td { string quest.difficulty }
-                        td {
-                            if quest.completed then "Completed"
-                            else "Open"
-                        }
-                    }
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Focus Session"
+        }
+
+        div {
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; max-width:520px;"
+
+            h2 {
+                attr.style "color:#facc15;"
+                text "Boss Fight Mode"
             }
-        )
-        .Elt()
 
-let menuItem (model: Model) (page: Page) (text: string) =
-    Main.MenuItem()
-        .Active(if model.page = page then "is-active" else "")
-        .Url(router.Link page)
-        .Text(text)
-        .Elt()
+            p { text "Choose how long your next focus session should be." }
+
+            div {
+                attr.style "font-size:48px; font-weight:900; margin:20px 0;"
+                text (string model.focusMinutes + " min")
+            }
+
+            button {
+                attr.style "margin-right:10px; padding:10px 18px; border-radius:10px; border:none; background:#334155; color:white; cursor:pointer;"
+                on.click (fun _ -> dispatch DecreaseFocusTime)
+                text "-5 min"
+            }
+
+            button {
+                attr.style "padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; cursor:pointer; font-weight:700;"
+                on.click (fun _ -> dispatch IncreaseFocusTime)
+                text "+5 min"
+            }
+        }
+    }
+
+let statsPage model =
+    let completed =
+        model.quests |> List.filter (fun q -> q.completed) |> List.length
+
+    let total = model.quests.Length
+
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Stats"
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px;"
+            statBox "Completed quests" (string completed + " / " + string total)
+            statBox "Focus minutes" (string model.focusMinutes)
+            statBox "Current level" (string model.player.level)
+        }
+    }
 
 let view model dispatch =
     div {
-
-        h1 { "FocusQuest" }
+        attr.style "min-height:100vh; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif;"
 
         div {
+            attr.style "background:#020617; padding:16px 40px; border-bottom:1px solid #334155;"
+
             button {
+                attr.style (buttonStyle (model.page = Home))
                 on.click (fun _ -> dispatch (SetPage Home))
-                "Dashboard"
+                text "Dashboard"
             }
+
             button {
-                on.click (fun _ -> dispatch (SetPage Counter))
-                "Focus Session"
+                attr.style (buttonStyle (model.page = Focus))
+                on.click (fun _ -> dispatch (SetPage Focus))
+                text "Focus Session"
             }
+
             button {
-                on.click (fun _ -> dispatch (SetPage Data))
-                "Stats"
+                attr.style (buttonStyle (model.page = Stats))
+                on.click (fun _ -> dispatch (SetPage Stats))
+                text "Stats"
             }
         }
 
         match model.page with
         | Home -> homePage model dispatch
-        | Counter -> counterPage model dispatch
-        | Data ->
-            div { "Stats page (coming soon)" }
+        | Focus -> focusPage model dispatch
+        | Stats -> statsPage model
     }
 
 type MyApp() =
@@ -239,6 +314,3 @@ type MyApp() =
     override this.Program =
         Program.mkProgram (fun _ -> initModel, Cmd.none) update view
         |> Program.withRouter router
-#if DEBUG
-        |> Program.withHotReload
-#endif

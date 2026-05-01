@@ -49,7 +49,7 @@ type BookService =
 
     interface Bolero.Remoting.IRemoteService with
         member this.BasePath = "/books"
-        
+
 type Model =
     {
         page: Page
@@ -136,7 +136,38 @@ let router = Router.infer SetPage (fun model -> model.page)
 type Main = Template<"wwwroot/main.html">
 
 let homePage model dispatch =
-    Main.Home().Elt()
+    div {
+        h1 { "FocusQuest" }
+        h2 { "Level Up Your Focus" }
+
+        div {
+            h3 { $"Player: {model.player.name}" }
+            p { $"Level: {model.player.level}" }
+            p { $"XP: {model.player.xp}" }
+        }
+
+        h3 { "Today’s Quests" }
+
+        for quest in model.quests do
+            div {
+                attr.``class`` "box"
+
+                h4 { quest.title }
+                p { $"Duration: {quest.duration} minutes" }
+                p { $"Difficulty: {quest.difficulty}" }
+                p {
+                    if quest.completed then "Status: Completed"
+                    else "Status: Open"
+                }
+
+                if not quest.completed then
+                    button {
+                        attr.``class`` "button is-primary"
+                        on.click (fun _ -> dispatch (CompleteQuest quest.title))
+                        "Complete Quest"
+                    }
+            }
+    }
 
 let counterPage model dispatch =
     Main.Counter()
@@ -174,28 +205,31 @@ let menuItem (model: Model) (page: Page) (text: string) =
         .Elt()
 
 let view model dispatch =
-    Main()
-        .Menu(concat {
-            menuItem model Home "Dashboard"
-            menuItem model Counter "Focus Session"
-            menuItem model Data "Stats"
-        })
-        .Body(
-            cond model.page <| function
-            | Home -> homePage model dispatch
-            | Counter -> counterPage model dispatch
-            | Data -> dataPage model dispatch
-        )
-        .Error(
-            cond model.error <| function
-            | None -> empty()
-            | Some err ->
-                Main.ErrorNotification()
-                    .Text(err)
-                    .Hide(fun _ -> dispatch ClearError)
-                    .Elt()
-        )
-        .Elt()
+    div {
+
+        h1 { "FocusQuest" }
+
+        div {
+            button {
+                on.click (fun _ -> dispatch (SetPage Home))
+                "Dashboard"
+            }
+            button {
+                on.click (fun _ -> dispatch (SetPage Counter))
+                "Focus Session"
+            }
+            button {
+                on.click (fun _ -> dispatch (SetPage Data))
+                "Stats"
+            }
+        }
+
+        match model.page with
+        | Home -> homePage model dispatch
+        | Counter -> counterPage model dispatch
+        | Data ->
+            div { "Stats page (coming soon)" }
+    }
 
 type MyApp() =
     inherit ProgramComponent<Model, Message>()

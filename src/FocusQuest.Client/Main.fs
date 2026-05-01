@@ -1,147 +1,136 @@
 module FocusQuest.Client.Main
 
-open System
 open Elmish
 open Bolero
 open Bolero.Html
-open Bolero.Remoting
-open Bolero.Remoting.Client
 open Bolero.Templating.Client
 
-/// Routing endpoints definition.
 type Page =
     | [<EndPoint "/">] Home
     | [<EndPoint "/counter">] Counter
     | [<EndPoint "/data">] Data
 
-/// The Elmish application's model.
-type Model =
+type Difficulty =
+    | Easy
+    | Medium
+    | Hard
+
+type Quest =
     {
-        page: Page
-        counter: int
-        books: Book[] option
-        error: string option
-        username: string
-        password: string
-        signedInAs: option<string>
-        signInFailed: bool
+        title: string
+        duration: int
+        difficulty: Difficulty
+        completed: bool
     }
 
-and Book =
+type Player =
+    {
+        name: string
+        xp: int
+        level: int
+    }
+type Book =
     {
         title: string
         author: string
-        publishDate: DateTime
+        publishDate: System.DateTime
         isbn: string
+    }
+
+type BookService =
+    {
+        getBooks: unit -> Async<Book[]>
+        addBook: Book -> Async<unit>
+        removeBookByIsbn: string -> Async<unit>
+        signIn: string * string -> Async<option<string>>
+        getUsername: unit -> Async<string>
+        signOut: unit -> Async<unit>
+    }
+
+    interface Bolero.Remoting.IRemoteService with
+        member this.BasePath = "/books"
+        
+type Model =
+    {
+        page: Page
+        focusMinutes: int
+        player: Player
+        quests: Quest list
+        error: string option
     }
 
 let initModel =
     {
         page = Home
-        counter = 0
-        books = None
+        focusMinutes = 25
+        player = { name = "Player1"; xp = 0; level = 1 }
+        quests =
+            [
+                { title = "Tanulás 30 perc"; duration = 30; difficulty = Easy; completed = false }
+                { title = "Gyakorlás 60 perc"; duration = 60; difficulty = Medium; completed = false }
+            ]
         error = None
-        username = ""
-        password = ""
-        signedInAs = None
-        signInFailed = false
     }
 
-/// Remote service definition.
-type BookService =
-    {
-        /// Get the list of all books in the collection.
-        getBooks: unit -> Async<Book[]>
-
-        /// Add a book in the collection.
-        addBook: Book -> Async<unit>
-
-        /// Remove a book from the collection, identified by its ISBN.
-        removeBookByIsbn: string -> Async<unit>
-
-        /// Sign into the application.
-        signIn : string * string -> Async<option<string>>
-
-        /// Get the user's name, or None if they are not authenticated.
-        getUsername : unit -> Async<string>
-
-        /// Sign out from the application.
-        signOut : unit -> Async<unit>
-    }
-
-    interface IRemoteService with
-        member this.BasePath = "/books"
-
-/// The Elmish application's update messages.
 type Message =
     | SetPage of Page
-    | Increment
-    | Decrement
-    | SetCounter of int
-    | GetBooks
-    | GotBooks of Book[]
-    | SetUsername of string
-    | SetPassword of string
-    | ClearLoginForm
-    | GetSignedInAs
-    | RecvSignedInAs of option<string>
-    | SendSignIn
-    | RecvSignIn of option<string>
-    | SendSignOut
-    | RecvSignOut
-    | Error of exn
+    | IncreaseFocusTime
+    | DecreaseFocusTime
+    | SetFocusTime of int
+    | CompleteQuest of string
     | ClearError
 
-let update remote message model =
-    let onSignIn = function
-        | Some _ -> Cmd.batch [ Cmd.ofMsg GetBooks; Cmd.ofMsg ClearLoginForm ]
-        | None -> Cmd.none
+let xpForDifficulty difficulty =
+    match difficulty with
+    | Easy -> 25
+    | Medium -> 50
+    | Hard -> 80
+
+let update message model =
     match message with
     | SetPage page ->
         { model with page = page }, Cmd.none
 
-    | Increment ->
-        { model with counter = model.counter + 1 }, Cmd.none
-    | Decrement ->
-        { model with counter = model.counter - 1 }, Cmd.none
-    | SetCounter value ->
-        { model with counter = value }, Cmd.none
+    | IncreaseFocusTime ->
+        { model with focusMinutes = model.focusMinutes + 5 }, Cmd.none
 
-    | GetBooks ->
-        let cmd = Cmd.OfAsync.either remote.getBooks () GotBooks Error
-        { model with books = None }, cmd
-    | GotBooks books ->
-        { model with books = Some books }, Cmd.none
+    | DecreaseFocusTime ->
+        let newValue = max 5 (model.focusMinutes - 5)
+        { model with focusMinutes = newValue }, Cmd.none
 
-    | SetUsername s ->
-        { model with username = s }, Cmd.none
-    | SetPassword s ->
-        { model with password = s }, Cmd.none
-    | ClearLoginForm ->
+    | SetFocusTime value ->
+        { model with focusMinutes = max 5 value }, Cmd.none
+
+    | CompleteQuest title ->
+        let quest =
+            model.quests
+            |> List.tryFind (fun q -> q.title = title)
+
+        let gainedXp =
+            match quest with
+            | Some q when not q.completed -> xpForDifficulty q.difficulty
+            | _ -> 0
+
+        let updatedQuests =
+            model.quests
+            |> List.map (fun q ->
+                if q.title = title then { q with completed = true }
+                else q)
+
+        let newXp = model.player.xp + gainedXp
+
+        let newLevel =
+            if newXp >= model.player.level * 100 then model.player.level + 1
+            else model.player.level
+
         { model with
-            username = ""
-            password = "" }, Cmd.none
-    | GetSignedInAs ->
-        model, Cmd.OfAuthorized.either remote.getUsername () RecvSignedInAs Error
-    | RecvSignedInAs username ->
-        { model with signedInAs = username }, onSignIn username
-    | SendSignIn ->
-        model, Cmd.OfAsync.either remote.signIn (model.username, model.password) RecvSignIn Error
-    | RecvSignIn username ->
-        { model with signedInAs = username; signInFailed = Option.isNone username }, onSignIn username
-    | SendSignOut ->
-        model, Cmd.OfAsync.either remote.signOut () (fun () -> RecvSignOut) Error
-    | RecvSignOut ->
-        { model with signedInAs = None; signInFailed = false }, Cmd.none
+            quests = updatedQuests
+            player = { model.player with xp = newXp; level = newLevel } },
+        Cmd.none
 
-    | Error RemoteUnauthorizedException ->
-        { model with error = Some "You have been logged out."; signedInAs = None }, Cmd.none
-    | Error exn ->
-        { model with error = Some exn.Message }, Cmd.none
     | ClearError ->
         { model with error = None }, Cmd.none
 
-/// Connects the routing system to the Elmish application.
 let router = Router.infer SetPage (fun model -> model.page)
 
 type Main = Template<"wwwroot/main.html">
@@ -151,42 +140,29 @@ let homePage model dispatch =
 
 let counterPage model dispatch =
     Main.Counter()
-        .Decrement(fun _ -> dispatch Decrement)
-        .Increment(fun _ -> dispatch Increment)
-        .Value(model.counter, fun v -> dispatch (SetCounter v))
+        .Decrement(fun _ -> dispatch DecreaseFocusTime)
+        .Increment(fun _ -> dispatch IncreaseFocusTime)
+        .Value(model.focusMinutes, fun v -> dispatch (SetFocusTime v))
         .Elt()
 
-let dataPage model (username: string) dispatch =
+let dataPage model dispatch =
     Main.Data()
-        .Reload(fun _ -> dispatch GetBooks)
-        .Username(username)
-        .SignOut(fun _ -> dispatch SendSignOut)
-        .Rows(cond model.books <| function
-            | None ->
-                Main.EmptyData().Elt()
-            | Some books ->
-                forEach books <| fun book ->
+        .Reload(fun _ -> ())
+        .Username(model.player.name)
+        .SignOut(fun _ -> ())
+        .Rows(
+            concat {
+                for quest in model.quests do
                     tr {
-                        td { book.title }
-                        td { book.author }
-                        td { book.publishDate.ToString("yyyy-MM-dd") }
-                        td { book.isbn }
-                    })
-        .Elt()
-
-let signInPage model dispatch =
-    Main.SignIn()
-        .Username(model.username, fun s -> dispatch (SetUsername s))
-        .Password(model.password, fun s -> dispatch (SetPassword s))
-        .SignIn(fun _ -> dispatch SendSignIn)
-        .ErrorNotification(
-            cond model.signInFailed <| function
-            | false -> empty()
-            | true ->
-                Main.ErrorNotification()
-                    .HideClass("is-hidden")
-                    .Text("Sign in failed. Use any username and the password \"password\".")
-                    .Elt()
+                        td { quest.title }
+                        td { string quest.duration + " perc" }
+                        td { string quest.difficulty }
+                        td {
+                            if quest.completed then "Completed"
+                            else "Open"
+                        }
+                    }
+            }
         )
         .Elt()
 
@@ -208,10 +184,7 @@ let view model dispatch =
             cond model.page <| function
             | Home -> homePage model dispatch
             | Counter -> counterPage model dispatch
-            | Data ->
-                cond model.signedInAs <| function
-                | Some username -> dataPage model username dispatch
-                | None -> signInPage model dispatch
+            | Data -> dataPage model dispatch
         )
         .Error(
             cond model.error <| function
@@ -230,9 +203,7 @@ type MyApp() =
     override _.CssScope = CssScopes.MyApp
 
     override this.Program =
-        let bookService = this.Remote<BookService>()
-        let update = update bookService
-        Program.mkProgram (fun _ -> initModel, Cmd.ofMsg GetSignedInAs) update view
+        Program.mkProgram (fun _ -> initModel, Cmd.none) update view
         |> Program.withRouter router
 #if DEBUG
         |> Program.withHotReload

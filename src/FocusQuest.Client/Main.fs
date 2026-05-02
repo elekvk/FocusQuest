@@ -54,6 +54,7 @@ type Model =
     {
         page: Page
         focusMinutes: int
+        focusRunning: bool
         player: Player
         quests: Quest list
     }
@@ -62,6 +63,7 @@ let initModel =
     {
         page = Home
         focusMinutes = 25
+        focusRunning = false
         player = { name = "Player1"; xp = 0; level = 1 }
         quests =
             [
@@ -75,6 +77,8 @@ type Message =
     | SetPage of Page
     | IncreaseFocusTime
     | DecreaseFocusTime
+    | StartFocusSession
+    | FinishFocusSession
     | CompleteQuest of string
 
 let xpForDifficulty difficulty =
@@ -93,6 +97,21 @@ let update message model =
 
     | DecreaseFocusTime ->
         { model with focusMinutes = max 5 (model.focusMinutes - 5) }, Cmd.none
+    | StartFocusSession ->
+        { model with focusRunning = true }, Cmd.none
+
+    | FinishFocusSession ->
+        let rewardXp = model.focusMinutes * 2
+        let newXp = model.player.xp + rewardXp
+
+        let newLevel =
+            if newXp >= model.player.level * 100 then model.player.level + 1
+            else model.player.level
+
+        { model with
+            focusRunning = false
+            player = { model.player with xp = newXp; level = newLevel } },
+        Cmd.none
 
     | CompleteQuest title ->
         let selectedQuest =
@@ -224,31 +243,55 @@ let focusPage model dispatch =
         }
 
         div {
-            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; max-width:520px;"
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; max-width:600px;"
 
             h2 {
                 attr.style "color:#facc15;"
                 text "Boss Fight Mode"
             }
 
-            p { text "Choose how long your next focus session should be." }
+            p {
+                text "Start a focus session. Finish it to earn XP."
+            }
 
             div {
                 attr.style "font-size:48px; font-weight:900; margin:20px 0;"
                 text (string model.focusMinutes + " min")
             }
 
-            button {
-                attr.style "margin-right:10px; padding:10px 18px; border-radius:10px; border:none; background:#334155; color:white; cursor:pointer;"
-                on.click (fun _ -> dispatch DecreaseFocusTime)
-                text "-5 min"
-            }
+            if model.focusRunning then
+                div {
+                    p {
+                        attr.style "color:#22c55e; font-weight:800;"
+                        text "Session in progress..."
+                    }
 
-            button {
-                attr.style "padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; cursor:pointer; font-weight:700;"
-                on.click (fun _ -> dispatch IncreaseFocusTime)
-                text "+5 min"
-            }
+                    button {
+                        attr.style "background:linear-gradient(90deg,#22c55e,#38bdf8); color:white; border:none; padding:12px 20px; border-radius:10px; font-weight:800;"
+                        on.click (fun _ -> dispatch FinishFocusSession)
+                        text "Finish Session"
+                    }
+                }
+            else
+                div {
+                    button {
+                        attr.style "margin-right:10px; background:#334155; color:white; padding:10px 16px; border-radius:10px;"
+                        on.click (fun _ -> dispatch DecreaseFocusTime)
+                        text "-5 min"
+                    }
+
+                    button {
+                        attr.style "margin-right:10px; background:#334155; color:white; padding:10px 16px; border-radius:10px;"
+                        on.click (fun _ -> dispatch IncreaseFocusTime)
+                        text "+5 min"
+                    }
+
+                    button {
+                        attr.style "background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; padding:12px 20px; border-radius:10px; font-weight:800;"
+                        on.click (fun _ -> dispatch StartFocusSession)
+                        text "Start Focus"
+                    }
+                }
         }
     }
 

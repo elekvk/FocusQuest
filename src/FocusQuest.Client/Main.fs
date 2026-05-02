@@ -65,9 +65,9 @@ let initModel =
         player = { name = "Player1"; xp = 0; level = 1 }
         quests =
             [
-                { title = "Tanulás 30 perc"; duration = 30; difficulty = Easy; completed = false }
-                { title = "Gyakorlás 60 perc"; duration = 60; difficulty = Medium; completed = false }
-                { title = "Projektmunka 45 perc"; duration = 45; difficulty = Hard; completed = false }
+                { title = "Study for 30 minutes"; duration = 30; difficulty = Easy; completed = false }
+                { title = "Practice coding for 60 minutes"; duration = 60; difficulty = Medium; completed = false }
+                { title = "Work on project for 45 minutes"; duration = 45; difficulty = Hard; completed = false }
             ]
     }
 

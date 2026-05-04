@@ -29,6 +29,13 @@ type Player =
         level: int
     }
 
+type Achievement =
+    {
+        title: string
+        description: string
+        unlocked: bool
+    }
+
 type Book =
     {
         title: string
@@ -56,6 +63,7 @@ type Model =
         focusMinutes: int
         player: Player
         quests: Quest list
+        achievements: Achievement list
     }
 
 let initModel =
@@ -69,6 +77,12 @@ let initModel =
                 { title = "Practice coding for 60 minutes"; duration = 60; difficulty = Medium; completed = false }
                 { title = "Work on project for 45 minutes"; duration = 45; difficulty = Hard; completed = false }
             ]
+        achievements =
+            [
+                { title = "First Quest"; description = "Complete your first quest."; unlocked = false }
+                { title = "Level Up"; description = "Reach level 2."; unlocked = false }
+                { title = "Focused Hero"; description = "Complete all daily quests."; unlocked = false }
+            ]    
     }
 
 type Message =

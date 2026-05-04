@@ -258,6 +258,10 @@ let statsPage model =
 
     let total = model.quests.Length
 
+    let progress =
+        if total = 0 then 0
+        else completed * 100 / total
+
     div {
         attr.style "padding:40px;"
 
@@ -267,10 +271,32 @@ let statsPage model =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px;"
+            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
             statBox "Completed quests" (string completed + " / " + string total)
+            statBox "Progress" (string progress + "%")
             statBox "Focus minutes" (string model.focusMinutes)
             statBox "Current level" (string model.player.level)
+        }
+
+        div {
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px;"
+
+            h2 {
+                attr.style "color:#facc15; margin-top:0;"
+                text "Project Summary"
+            }
+
+            p { text ("Player: " + model.player.name) }
+            p { text ("Total XP: " + string model.player.xp) }
+            p { text ("Quest completion: " + string progress + "%") }
+
+            div {
+                attr.style "height:16px; background:#334155; border-radius:999px; overflow:hidden; margin-top:12px;"
+
+                div {
+                    attr.style ("height:100%; width:" + string progress + "%; background:linear-gradient(90deg,#22c55e,#38bdf8);")
+                }
+            }
         }
     }
 

@@ -337,6 +337,40 @@ let statsPage model =
                 }
             }
         }
+
+        div {
+            attr.style "margin-top:30px;"
+
+            h2 {
+                attr.style "font-size:28px; color:#facc15;"
+                text "Achievements"
+            }
+
+            for achievement in model.achievements do
+                div {
+                    attr.style "background:#0f172a; border:1px solid #334155; border-radius:14px; padding:18px; margin-top:14px;"
+
+                    h3 {
+                        attr.style "margin-top:0; color:#38bdf8;"
+                        text achievement.title
+                    }
+
+                    p {
+                        text achievement.description
+                    }
+
+                    if achievement.unlocked then
+                        p {
+                            attr.style "color:#22c55e; font-weight:700;"
+                            text "Unlocked"
+                        }
+                    else
+                        p {
+                            attr.style "color:#94a3b8;"
+                            text "Locked"
+                        }
+                }
+        }
     }
 
 let view model dispatch =

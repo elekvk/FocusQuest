@@ -97,6 +97,24 @@ let xpForDifficulty difficulty =
     | Medium -> 50
     | Hard -> 80
 
+let updateAchievements player quests achievements =
+    let completedCount =
+        quests |> List.filter (fun q -> q.completed) |> List.length
+
+    let allCompleted =
+        completedCount = quests.Length
+
+    achievements
+    |> List.map (fun (a: Achievement) ->
+        if a.title = "First Quest" && completedCount >= 1 then
+            { a with unlocked = true }
+        elif a.title = "Level Up" && player.level >= 2 then
+            { a with unlocked = true }
+        elif a.title = "Focused Hero" && allCompleted then
+            { a with unlocked = true }
+        else
+            a)    
+
 let update message model =
     match message with
     | SetPage page ->
@@ -129,9 +147,16 @@ let update message model =
             if newXp >= model.player.level * 100 then model.player.level + 1
             else model.player.level
 
+        let updatedPlayer =
+            { model.player with xp = newXp; level = newLevel }
+
+        let updatedAchievements =
+            updateAchievements updatedPlayer updatedQuests model.achievements
+
         { model with
             quests = updatedQuests
-            player = { model.player with xp = newXp; level = newLevel } },
+            player = updatedPlayer
+            achievements = updatedAchievements },
         Cmd.none
 
 let router = Router.infer SetPage (fun model -> model.page)

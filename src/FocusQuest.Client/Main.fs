@@ -64,6 +64,7 @@ type Model =
         player: Player
         quests: Quest list
         achievements: Achievement list
+        streak: int
     }
 
 let initModel =
@@ -82,7 +83,8 @@ let initModel =
                 { title = "First Quest"; description = "Complete your first quest."; unlocked = false }
                 { title = "Level Up"; description = "Reach level 2."; unlocked = false }
                 { title = "Focused Hero"; description = "Complete all daily quests."; unlocked = false }
-            ]    
+            ]
+        streak = 0    
     }
 
 type Message =
@@ -153,10 +155,15 @@ let update message model =
         let updatedAchievements =
             updateAchievements updatedPlayer updatedQuests model.achievements
 
+        let newStreak =
+            if gainedXp > 0 then model.streak + 1
+            else model.streak
+
         { model with
             quests = updatedQuests
             player = updatedPlayer
-            achievements = updatedAchievements },
+            achievements = updatedAchievements
+            streak = newStreak },
         Cmd.none
 
 let router = Router.infer SetPage (fun model -> model.page)

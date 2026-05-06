@@ -93,6 +93,7 @@ type Message =
     | IncreaseFocusTime
     | DecreaseFocusTime
     | CompleteQuest of string
+    | ResetProgress
 
 let xpForDifficulty difficulty =
     match difficulty with
@@ -166,6 +167,9 @@ let update message model =
             achievements = updatedAchievements
             streak = newStreak },
         Cmd.none
+
+    | ResetProgress ->
+        initModel, Cmd.none
 
 let router = Router.infer SetPage (fun model -> model.page)
 
@@ -414,11 +418,12 @@ let settingsPage model dispatch =
 
             button {
                 attr.style "margin-top:16px; padding:10px 18px; border-radius:10px; border:none; background:#dc2626; color:white; font-weight:700; cursor:pointer;"
-                text "Reset Progress (coming soon)"
+                on.click (fun _ -> dispatch ResetProgress)
+                text "Reset Progress"
             }
         }
     }
-        
+
 let view model dispatch =
     div {
         attr.style "min-height:100vh; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif;"

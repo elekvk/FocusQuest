@@ -8,6 +8,7 @@ type Page =
     | [<EndPoint "/">] Home
     | [<EndPoint "/focus">] Focus
     | [<EndPoint "/stats">] Stats
+    | [<EndPoint "/settings">] Settings
 
 type Difficulty =
     | Easy
@@ -381,6 +382,43 @@ let statsPage model =
                 }
         }
     }
+
+let settingsPage model dispatch =
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Settings"
+        }
+
+        div {
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; max-width:600px;"
+
+            h2 {
+                attr.style "color:#facc15;"
+                text "Player Settings"
+            }
+
+            p {
+                text ("Current player: " + model.player.name)
+            }
+
+            p {
+                text ("Current level: " + string model.player.level)
+            }
+
+            p {
+                text ("Current streak: " + string model.streak + " days 🔥")
+            }
+
+            button {
+                attr.style "margin-top:16px; padding:10px 18px; border-radius:10px; border:none; background:#dc2626; color:white; font-weight:700; cursor:pointer;"
+                text "Reset Progress (coming soon)"
+            }
+        }
+    }
+        
 let view model dispatch =
     div {
         attr.style "min-height:100vh; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif;"
@@ -405,12 +443,19 @@ let view model dispatch =
                 on.click (fun _ -> dispatch (SetPage Stats))
                 text "Stats"
             }
+
+            button {
+                attr.style (buttonStyle (model.page = Settings))
+                on.click (fun _ -> dispatch (SetPage Settings))
+                text "Settings"
+            }
         }
 
         match model.page with
         | Home -> homePage model dispatch
         | Focus -> focusPage model dispatch
         | Stats -> statsPage model
+        | Settings -> settingsPage model dispatch
     }
 
 type MyApp() =

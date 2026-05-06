@@ -317,11 +317,12 @@ let statsPage model =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
             statBox "Completed quests" (string completed + " / " + string total)
             statBox "Progress" (string progress + "%")
             statBox "Focus minutes" (string model.focusMinutes)
             statBox "Current level" (string model.player.level)
+            statBox "Current streak" (string model.streak + " days 🔥")
         }
 
         div {
@@ -335,6 +336,7 @@ let statsPage model =
             p { text ("Player: " + model.player.name) }
             p { text ("Total XP: " + string model.player.xp) }
             p { text ("Quest completion: " + string progress + "%") }
+            p { text ("Current streak: " + string model.streak + " days") }
 
             div {
                 attr.style "height:16px; background:#334155; border-radius:999px; overflow:hidden; margin-top:12px;"
@@ -379,7 +381,6 @@ let statsPage model =
                 }
         }
     }
-
 let view model dispatch =
     div {
         attr.style "min-height:100vh; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif;"

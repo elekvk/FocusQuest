@@ -66,6 +66,8 @@ type Model =
         quests: Quest list
         achievements: Achievement list
         streak: int
+        dailyChallengeCompleted: bool
+        dailyChallengeRewardXp: int
     }
 
 let initModel =
@@ -85,7 +87,9 @@ let initModel =
                 { title = "Level Up"; description = "Reach level 2."; unlocked = false }
                 { title = "Focused Hero"; description = "Complete all daily quests."; unlocked = false }
             ]
-        streak = 0    
+        streak = 0
+        dailyChallengeCompleted = false
+        dailyChallengeRewardXp = 40
     }
 
 type Message =
@@ -93,6 +97,7 @@ type Message =
     | IncreaseFocusTime
     | DecreaseFocusTime
     | CompleteQuest of string
+    | CompleteDailyChallenge
     | ResetProgress
 
 let xpForDifficulty difficulty =
@@ -117,7 +122,11 @@ let updateAchievements player quests achievements =
         elif a.title = "Focused Hero" && allCompleted then
             { a with unlocked = true }
         else
-            a)    
+            a)
+
+let calculateLevel xp currentLevel =
+    if xp >= currentLevel * 100 then currentLevel + 1
+    else currentLevel
 
 let update message model =
     match message with
@@ -146,10 +155,7 @@ let update message model =
                 else q)
 
         let newXp = model.player.xp + gainedXp
-
-        let newLevel =
-            if newXp >= model.player.level * 100 then model.player.level + 1
-            else model.player.level
+        let newLevel = calculateLevel newXp model.player.level
 
         let updatedPlayer =
             { model.player with xp = newXp; level = newLevel }
@@ -167,6 +173,25 @@ let update message model =
             achievements = updatedAchievements
             streak = newStreak },
         Cmd.none
+
+    | CompleteDailyChallenge ->
+        if model.dailyChallengeCompleted then
+            model, Cmd.none
+        else
+            let newXp = model.player.xp + model.dailyChallengeRewardXp
+            let newLevel = calculateLevel newXp model.player.level
+
+            let updatedPlayer =
+                { model.player with xp = newXp; level = newLevel }
+
+            let updatedAchievements =
+                updateAchievements updatedPlayer model.quests model.achievements
+
+            { model with
+                player = updatedPlayer
+                achievements = updatedAchievements
+                dailyChallengeCompleted = true },
+            Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
@@ -232,6 +257,35 @@ let homePage model dispatch =
                     attr.style ("height:100%; width:" + string xpPercent + "%; background:linear-gradient(90deg,#22c55e,#38bdf8);")
                 }
             }
+        }
+
+        div {
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; margin-bottom:24px;"
+
+            h3 {
+                attr.style "margin-top:0; color:#facc15;"
+                text "Daily Focus Challenge"
+            }
+
+            p {
+                text "Complete at least one quest today to earn bonus XP."
+            }
+
+            p {
+                text ("Reward: " + string model.dailyChallengeRewardXp + " XP")
+            }
+
+            if model.dailyChallengeCompleted then
+                p {
+                    attr.style "color:#22c55e; font-weight:700;"
+                    text "Daily challenge completed"
+                }
+            else
+                button {
+                    attr.style "background:linear-gradient(90deg,#f97316,#facc15); color:#111827; border:none; border-radius:10px; padding:10px 18px; font-weight:700; cursor:pointer;"
+                    on.click (fun _ -> dispatch CompleteDailyChallenge)
+                    text "Claim Daily Challenge"
+                }
         }
 
         h3 {

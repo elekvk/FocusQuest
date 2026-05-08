@@ -35,14 +35,14 @@ type Achievement =
         title: string
         description: string
         unlocked: bool
-    }   
+    }
 
 type QuestHistory =
     {
         title: string
         xpEarned: int
         completedAt: System.DateTime
-    }    
+    }
 
 type ProgressService =
     {
@@ -148,7 +148,7 @@ let update message model =
             model.quests
             |> List.map (fun q ->
                 if q.title = title then { q with completed = true }
-                else q)     
+                else q)
 
         let newXp = model.player.xp + gainedXp
         let newLevel = calculateLevel newXp model.player.level
@@ -182,7 +182,10 @@ let update message model =
         Cmd.none
 
     | CompleteDailyChallenge ->
-        if model.dailyChallengeCompleted then
+        let hasCompletedQuest =
+            model.quests |> List.exists (fun q -> q.completed)
+
+        if model.dailyChallengeCompleted || not hasCompletedQuest then
             model, Cmd.none
         else
             let newXp = model.player.xp + model.dailyChallengeRewardXp
@@ -226,6 +229,9 @@ let statBox title value =
 
 let homePage model dispatch =
     let requiredXp = model.player.level * 100
+
+    let hasCompletedQuest =
+        model.quests |> List.exists (fun q -> q.completed)
 
     let xpPercent =
         (float model.player.xp / float requiredXp) * 100.0
@@ -286,6 +292,11 @@ let homePage model dispatch =
                 p {
                     attr.style "color:#22c55e; font-weight:700;"
                     text "Daily challenge completed"
+                }
+            elif not hasCompletedQuest then
+                p {
+                    attr.style "color:#94a3b8; font-weight:600;"
+                    text "Complete at least one quest before claiming the reward."
                 }
             else
                 button {

@@ -430,9 +430,7 @@ let statsPage model =
                         text achievement.title
                     }
 
-                    p {
-                        text achievement.description
-                    }
+                    p { text achievement.description }
 
                     if achievement.unlocked then
                         p {
@@ -445,6 +443,34 @@ let statsPage model =
                             text "Locked"
                         }
                 }
+        }
+
+        div {
+            attr.style "margin-top:30px;"
+
+            h2 {
+                attr.style "font-size:28px; color:#facc15;"
+                text "Recent Quest History"
+            }
+
+            if List.isEmpty model.questHistory then
+                p {
+                    attr.style "color:#94a3b8;"
+                    text "No completed quests yet."
+                }
+            else
+                for history in model.questHistory do
+                    div {
+                        attr.style "background:#0f172a; border:1px solid #334155; border-radius:14px; padding:18px; margin-top:14px;"
+
+                        h3 {
+                            attr.style "margin-top:0; color:#38bdf8;"
+                            text history.title
+                        }
+
+                        p { text ("XP Earned: " + string history.xpEarned) }
+                        p { text ("Completed at: " + history.completedAt.ToString("g")) }
+                    }
         }
     }
 

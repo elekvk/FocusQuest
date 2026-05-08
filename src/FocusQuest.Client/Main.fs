@@ -140,7 +140,7 @@ let update message model =
             model.quests
             |> List.map (fun q ->
                 if q.title = title then { q with completed = true }
-                else q)
+                else q)     
 
         let newXp = model.player.xp + gainedXp
         let newLevel = calculateLevel newXp model.player.level

@@ -10,6 +10,7 @@ open Bolero
 open Bolero.Remoting.Server
 open Bolero.Server
 open FocusQuest
+open FocusQuest.Server.Database
 open Bolero.Templating.Server
 
 [<EntryPoint>]
@@ -29,6 +30,8 @@ let main args =
 #if DEBUG
     builder.Services.AddHotReload(templateDir = __SOURCE_DIRECTORY__ + "/../FocusQuest.Client") |> ignore
 #endif
+
+    initializeDatabase()
 
     let app = builder.Build()
 

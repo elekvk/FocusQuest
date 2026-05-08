@@ -35,28 +35,14 @@ type Achievement =
         title: string
         description: string
         unlocked: bool
-    }
+    }   
 
-type Book =
+type QuestHistory =
     {
         title: string
-        author: string
-        publishDate: System.DateTime
-        isbn: string
-    }
-
-type BookService =
-    {
-        getBooks: unit -> Async<Book[]>
-        addBook: Book -> Async<unit>
-        removeBookByIsbn: string -> Async<unit>
-        signIn: string * string -> Async<option<string>>
-        getUsername: unit -> Async<string>
-        signOut: unit -> Async<unit>
-    }
-
-    interface Bolero.Remoting.IRemoteService with
-        member this.BasePath = "/books"
+        xpEarned: int
+        completedAt: System.DateTime
+    }    
 
 type Model =
     {
@@ -68,6 +54,7 @@ type Model =
         streak: int
         dailyChallengeCompleted: bool
         dailyChallengeRewardXp: int
+        questHistory: QuestHistory list
     }
 
 let initModel =
@@ -90,6 +77,7 @@ let initModel =
         streak = 0
         dailyChallengeCompleted = false
         dailyChallengeRewardXp = 40
+        questHistory = []
     }
 
 type Message =

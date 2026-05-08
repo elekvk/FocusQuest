@@ -1,16 +1,14 @@
 module FocusQuest.Server.ProgressService
 
+open System
 open Microsoft.Data.Sqlite
 open FocusQuest.Server.Database
-open System
 
 let saveQuestHistory title xpEarned =
     use connection = new SqliteConnection(connectionString)
-
     connection.Open()
 
-    let command = connection.CreateCommand()
-
+    use command = connection.CreateCommand()
     command.CommandText <- """
         INSERT INTO QuestHistory (Title, XpEarned, CompletedAt)
         VALUES ($title, $xpEarned, $completedAt)

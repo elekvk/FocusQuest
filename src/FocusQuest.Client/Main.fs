@@ -44,6 +44,14 @@ type QuestHistory =
         completedAt: System.DateTime
     }    
 
+type ProgressService =
+    {
+        saveQuestHistory: string * int -> Async<unit>
+    }
+
+    interface Bolero.Remoting.IRemoteService with
+        member this.BasePath = "/progress"
+
 type Model =
     {
         page: Page

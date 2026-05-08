@@ -159,6 +159,16 @@ let update message model =
         let updatedAchievements =
             updateAchievements updatedPlayer updatedQuests model.achievements
 
+        let updatedQuestHistory =
+            if gainedXp > 0 then
+                {
+                    title = title
+                    xpEarned = gainedXp
+                    completedAt = System.DateTime.Now
+                } :: model.questHistory
+            else
+                model.questHistory
+
         let newStreak =
             if gainedXp > 0 then model.streak + 1
             else model.streak
@@ -167,7 +177,8 @@ let update message model =
             quests = updatedQuests
             player = updatedPlayer
             achievements = updatedAchievements
-            streak = newStreak },
+            streak = newStreak
+            questHistory = updatedQuestHistory },
         Cmd.none
 
     | CompleteDailyChallenge ->

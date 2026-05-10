@@ -202,20 +202,6 @@ let update message model =
                 achievements = updatedAchievements
                 dailyChallengeCompleted = true },
             Cmd.none
-            let newXp = model.player.xp + model.dailyChallengeRewardXp
-            let newLevel = calculateLevel newXp model.player.level
-
-            let updatedPlayer =
-                { model.player with xp = newXp; level = newLevel }
-
-            let updatedAchievements =
-                updateAchievements updatedPlayer model.quests model.achievements
-
-            { model with
-                player = updatedPlayer
-                achievements = updatedAchievements
-                dailyChallengeCompleted = true },
-            Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none

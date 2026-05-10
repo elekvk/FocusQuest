@@ -202,6 +202,20 @@ let update message model =
                 achievements = updatedAchievements
                 dailyChallengeCompleted = true },
             Cmd.none
+            let newXp = model.player.xp + model.dailyChallengeRewardXp
+            let newLevel = calculateLevel newXp model.player.level
+
+            let updatedPlayer =
+                { model.player with xp = newXp; level = newLevel }
+
+            let updatedAchievements =
+                updateAchievements updatedPlayer model.quests model.achievements
+
+            { model with
+                player = updatedPlayer
+                achievements = updatedAchievements
+                dailyChallengeCompleted = true },
+            Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
@@ -390,7 +404,7 @@ let statsPage model =
 
         h1 {
             attr.style "font-size:42px; color:#38bdf8;"
-            text "Stats"
+            text "Player Statistics"
         }
 
         div {
@@ -414,14 +428,6 @@ let statsPage model =
             p { text ("Total XP: " + string model.player.xp) }
             p { text ("Quest completion: " + string progress + "%") }
             p { text ("Current streak: " + string model.streak + " days") }
-
-            div {
-                attr.style "height:16px; background:#334155; border-radius:999px; overflow:hidden; margin-top:12px;"
-
-                div {
-                    attr.style ("height:100%; width:" + string progress + "%; background:linear-gradient(90deg,#22c55e,#38bdf8);")
-                }
-            }
         }
 
         div {
@@ -467,7 +473,7 @@ let statsPage model =
             if List.isEmpty model.questHistory then
                 p {
                     attr.style "color:#94a3b8;"
-                    text "No completed quests yet."
+                    text "Complete your first quest to start building your legend."
                 }
             else
                 for history in model.questHistory do
@@ -479,8 +485,14 @@ let statsPage model =
                             text history.title
                         }
 
-                        p { text ("XP Earned: " + string history.xpEarned) }
-                        p { text ("Completed at: " + history.completedAt.ToString("g")) }
+                        p {
+                            attr.style "color:#22c55e; font-weight:700;"
+                            text ("XP Earned: +" + string history.xpEarned)
+                        }
+
+                        p {
+                            text ("Completed at: " + history.completedAt.ToString("g"))
+                        }
                     }
         }
     }

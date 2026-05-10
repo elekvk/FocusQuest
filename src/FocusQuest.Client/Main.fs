@@ -63,6 +63,8 @@ type Model =
         dailyChallengeCompleted: bool
         dailyChallengeRewardXp: int
         questHistory: QuestHistory list
+        timerRunning: bool
+        secondsLeft: int
     }
 
 let initModel =
@@ -86,6 +88,8 @@ let initModel =
         dailyChallengeCompleted = false
         dailyChallengeRewardXp = 40
         questHistory = []
+        timerRunning = false
+        secondsLeft = 25 * 60
     }
 
 type Message =
@@ -96,6 +100,9 @@ type Message =
     | CompleteDailyChallenge
     | CompleteFocusSession
     | ResetProgress
+    | StartFocusTimer
+    | StopFocusTimer
+    | Tick
     
 
 let xpForDifficulty difficulty =
@@ -224,6 +231,22 @@ let update message model =
             player = updatedPlayer
             questHistory = updatedQuestHistory },
         Cmd.none
+
+    | StartFocusTimer ->
+    { model with
+        timerRunning = true
+        secondsLeft = model.focusMinutes * 60 },
+    Cmd.none
+
+    | StopFocusTimer ->
+        { model with timerRunning = false },
+        Cmd.none
+
+    | Tick ->
+        if model.timerRunning && model.secondsLeft > 0 then
+            { model with secondsLeft = model.secondsLeft - 1 }, Cmd.none
+        else
+            model, Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
@@ -360,6 +383,11 @@ let homePage model dispatch =
     }
 
 let focusPage model dispatch =
+
+    let minutesLeft = model.secondsLeft / 60
+    let secondsLeft = model.secondsLeft % 60
+    let timerText = sprintf "%02d:%02d" minutesLeft secondsLeft
+
     div {
         attr.style "padding:40px;"
 
@@ -383,6 +411,11 @@ let focusPage model dispatch =
                 text (string model.focusMinutes + " min")
             }
 
+            div {
+                attr.style "font-size:36px; font-weight:900; color:#22c55e; margin:16px 0;"
+                text timerText
+            }
+
             button {
                 attr.style "margin-right:10px; padding:10px 18px; border-radius:10px; border:none; background:#334155; color:white; cursor:pointer;"
                 on.click (fun _ -> dispatch DecreaseFocusTime)
@@ -393,6 +426,18 @@ let focusPage model dispatch =
                 attr.style "padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; cursor:pointer; font-weight:700;"
                 on.click (fun _ -> dispatch IncreaseFocusTime)
                 text "+5 min"
+            }
+
+            button {
+                attr.style "margin-top:20px; margin-right:10px; padding:12px 22px; border-radius:12px; border:none; background:#22c55e; color:#052e16; cursor:pointer; font-weight:800;"
+                on.click (fun _ -> dispatch StartFocusTimer)
+                text "Start Timer"
+            }
+
+            button {
+                attr.style "margin-top:20px; margin-right:10px; padding:12px 22px; border-radius:12px; border:none; background:#475569; color:white; cursor:pointer; font-weight:800;"
+                on.click (fun _ -> dispatch StopFocusTimer)
+                text "Stop Timer"
             }
 
             button {

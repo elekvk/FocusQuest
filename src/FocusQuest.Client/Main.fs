@@ -3,6 +3,8 @@ module FocusQuest.Client.Main
 open Elmish
 open Bolero
 open Bolero.Html
+open System
+open System.Threading
 
 type Page =
     | [<EndPoint "/">] Home
@@ -104,6 +106,13 @@ type Message =
     | StopFocusTimer
     | Tick
     
+let timerCmd =
+    Cmd.OfAsync.perform
+        (fun () -> async {
+            do! Async.Sleep 1000
+        })
+        ()
+        (fun _ -> Tick)
 
 let xpForDifficulty difficulty =
     match difficulty with
@@ -233,10 +242,10 @@ let update message model =
         Cmd.none
 
     | StartFocusTimer ->
-    { model with
-        timerRunning = true
-        secondsLeft = model.focusMinutes * 60 },
-    Cmd.none
+        { model with
+            timerRunning = true
+            secondsLeft = model.focusMinutes * 60 },
+        timerCmd
 
     | StopFocusTimer ->
         { model with timerRunning = false },
@@ -244,12 +253,14 @@ let update message model =
 
     | Tick ->
         if model.timerRunning && model.secondsLeft > 0 then
-            { model with secondsLeft = model.secondsLeft - 1 }, Cmd.none
+            { model with secondsLeft = model.secondsLeft - 1 },
+            timerCmd
         else
-            model, Cmd.none
+            { model with timerRunning = false },
+            Cmd.none
 
     | ResetProgress ->
-        initModel, Cmd.none
+            initModel, Cmd.none
 
 let router = Router.infer SetPage (fun model -> model.page)
 
@@ -444,14 +455,7 @@ let focusPage model dispatch =
                 attr.style "display:block; margin-top:20px; padding:12px 22px; border-radius:12px; border:none; background:linear-gradient(90deg,#22c55e,#38bdf8); color:#082f49; cursor:pointer; font-weight:800;"
                 on.click (fun _ -> dispatch CompleteFocusSession)
                 text "Complete Focus Session"
-            }    
-
-            button {
-                attr.style "margin-top:20px; margin-right:10px; padding:12px 22px; border-radius:12px; border:none; background:#64748b; color:white; cursor:pointer; font-weight:800;"
-                on.click (fun _ -> dispatch Tick)
-                text "Tick"
-            }    
-            
+            }      
         }
     }
 

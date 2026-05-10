@@ -107,6 +107,7 @@ type Message =
     | StartFocusTimer
     | StopFocusTimer
     | Tick
+    | ResetFocusTimer
     
 let timerCmd =
     Cmd.OfAsync.perform
@@ -257,6 +258,13 @@ let update message model =
 
     | StopFocusTimer ->
         { model with timerRunning = false },
+        Cmd.none
+
+    | ResetFocusTimer ->
+        { model with
+            timerRunning = false
+            secondsLeft = model.focusMinutes * 60
+            focusSessionCompleted = false },
         Cmd.none
 
     | Tick ->
@@ -425,10 +433,9 @@ let homePage model dispatch =
     }
 
 let focusPage model dispatch =
-
     let minutesLeft = model.secondsLeft / 60
-    let secondsLeft = model.secondsLeft % 60
-    let timerText = sprintf "%02d:%02d" minutesLeft secondsLeft
+    let remainingSeconds = model.secondsLeft % 60
+    let timerText = sprintf "%02d:%02d" minutesLeft remainingSeconds
 
     div {
         attr.style "padding:40px;"
@@ -446,7 +453,9 @@ let focusPage model dispatch =
                 text "Boss Fight Mode"
             }
 
-            p { text "Choose how long your next focus session should be." }
+            p {
+                text "Choose how long your next focus session should be."
+            }
 
             div {
                 attr.style "font-size:48px; font-weight:900; margin:20px 0;"
@@ -486,9 +495,15 @@ let focusPage model dispatch =
                 div {
                     attr.style "margin-top:20px; padding:18px; border-radius:14px; background:#14532d; color:#dcfce7; font-weight:700;"
                     text "Focus session completed! +50 XP earned ⚔️"
-                    }
-            }      
+                }
+
+            button {
+                attr.style "margin-top:14px; padding:12px 22px; border:none; border-radius:10px; background:#2563eb; color:white; font-weight:700; cursor:pointer;"
+                on.click (fun _ -> dispatch ResetFocusTimer)
+                text "Reset Timer"
+            }
         }
+    }
     
 let statsPage model =   
     let completed =

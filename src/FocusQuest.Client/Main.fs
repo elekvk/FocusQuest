@@ -94,7 +94,9 @@ type Message =
     | DecreaseFocusTime
     | CompleteQuest of string
     | CompleteDailyChallenge
+    | CompleteFocusSession
     | ResetProgress
+    
 
 let xpForDifficulty difficulty =
     match difficulty with
@@ -202,6 +204,26 @@ let update message model =
                 achievements = updatedAchievements
                 dailyChallengeCompleted = true },
             Cmd.none
+    | CompleteFocusSession ->
+        let gainedXp = model.focusMinutes
+
+        let newXp = model.player.xp + gainedXp
+        let newLevel = calculateLevel newXp model.player.level
+
+        let updatedPlayer =
+            { model.player with xp = newXp; level = newLevel }
+
+        let updatedQuestHistory =
+            {
+                title = "Completed focus session"
+                xpEarned = gainedXp
+                completedAt = System.DateTime.Now
+            } :: model.questHistory
+
+        { model with
+            player = updatedPlayer
+            questHistory = updatedQuestHistory },
+        Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
@@ -372,10 +394,16 @@ let focusPage model dispatch =
                 on.click (fun _ -> dispatch IncreaseFocusTime)
                 text "+5 min"
             }
+
+            button {
+                attr.style "display:block; margin-top:20px; padding:12px 22px; border-radius:12px; border:none; background:linear-gradient(90deg,#22c55e,#38bdf8); color:#082f49; cursor:pointer; font-weight:800;"
+                on.click (fun _ -> dispatch CompleteFocusSession)
+                text "Complete Focus Session"
+            }
         }
     }
 
-let statsPage model =
+let statsPage model =   
     let completed =
         model.quests |> List.filter (fun q -> q.completed) |> List.length
 

@@ -244,9 +244,15 @@ let update message model =
         Cmd.none
 
     | StartFocusTimer ->
+        let updatedSeconds =
+            if model.secondsLeft <= 0 then
+                model.focusMinutes * 60
+            else
+                model.secondsLeft
+
         { model with
             timerRunning = true
-            secondsLeft = model.focusMinutes * 60 },
+            secondsLeft = updatedSeconds },
         timerCmd
 
     | StopFocusTimer ->

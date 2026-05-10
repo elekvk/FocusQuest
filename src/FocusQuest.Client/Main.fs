@@ -444,7 +444,14 @@ let focusPage model dispatch =
                 attr.style "display:block; margin-top:20px; padding:12px 22px; border-radius:12px; border:none; background:linear-gradient(90deg,#22c55e,#38bdf8); color:#082f49; cursor:pointer; font-weight:800;"
                 on.click (fun _ -> dispatch CompleteFocusSession)
                 text "Complete Focus Session"
-            }
+            }    
+
+            button {
+                attr.style "margin-top:20px; margin-right:10px; padding:12px 22px; border-radius:12px; border:none; background:#64748b; color:white; cursor:pointer; font-weight:800;"
+                on.click (fun _ -> dispatch Tick)
+                text "Tick"
+            }    
+            
         }
     }
 

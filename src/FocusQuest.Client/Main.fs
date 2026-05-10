@@ -67,6 +67,7 @@ type Model =
         questHistory: QuestHistory list
         timerRunning: bool
         secondsLeft: int
+        focusSessionCompleted: bool
     }
 
 let initModel =
@@ -92,6 +93,7 @@ let initModel =
         questHistory = []
         timerRunning = false
         secondsLeft = 25 * 60
+        focusSessionCompleted = false
     }
 
 type Message =
@@ -257,7 +259,30 @@ let update message model =
             timerCmd
         else
             { model with timerRunning = false },
-            Cmd.none
+            Cmd.ofMsg CompleteFocusSession
+    | CompleteFocusSession ->
+        let gainedXp = 50
+
+        let newXp = model.player.xp + gainedXp
+        let newLevel = calculateLevel newXp model.player.level
+
+        let updatedPlayer =
+            { model.player with
+                xp = newXp
+                level = newLevel }
+
+        let updatedHistory =
+            {
+                title = "Focus Session"
+                xpEarned = gainedXp
+                completedAt = System.DateTime.Now
+            } :: model.questHistory
+
+        { model with
+            player = updatedPlayer
+            focusSessionCompleted = true
+            questHistory = updatedHistory },
+        Cmd.none
 
     | ResetProgress ->
             initModel, Cmd.none
@@ -451,14 +476,14 @@ let focusPage model dispatch =
                 text "Stop Timer"
             }
 
-            button {
-                attr.style "display:block; margin-top:20px; padding:12px 22px; border-radius:12px; border:none; background:linear-gradient(90deg,#22c55e,#38bdf8); color:#082f49; cursor:pointer; font-weight:800;"
-                on.click (fun _ -> dispatch CompleteFocusSession)
-                text "Complete Focus Session"
+            if model.focusSessionCompleted then
+                div {
+                    attr.style "margin-top:20px; padding:18px; border-radius:14px; background:#14532d; color:#dcfce7; font-weight:700;"
+                    text "Focus session completed! +50 XP earned ⚔️"
+                    }
             }      
         }
-    }
-
+    
 let statsPage model =   
     let completed =
         model.quests |> List.filter (fun q -> q.completed) |> List.length

@@ -1,10 +1,9 @@
 module FocusQuest.Client.Main
 
+open System
 open Elmish
 open Bolero
 open Bolero.Html
-open System
-open System.Threading
 
 type Page =
     | [<EndPoint "/">] Home
@@ -43,7 +42,7 @@ type QuestHistory =
     {
         title: string
         xpEarned: int
-        completedAt: System.DateTime
+        completedAt: DateTime
     }
 
 type ProgressService =
@@ -103,17 +102,18 @@ type Message =
     | CompleteQuest of string
     | CompleteDailyChallenge
     | CompleteFocusSession
-    | ResetProgress
     | StartFocusTimer
     | StopFocusTimer
     | Tick
     | ResetFocusTimer
-    
+    | ResetProgress
+
 let timerCmd =
     Cmd.OfAsync.perform
-        (fun () -> async {
-            do! Async.Sleep 1000
-        })
+        (fun () ->
+            async {
+                do! Async.Sleep 1000
+            })
         ()
         (fun _ -> Tick)
 
@@ -151,10 +151,18 @@ let update message model =
         { model with page = page }, Cmd.none
 
     | IncreaseFocusTime ->
-        { model with focusMinutes = model.focusMinutes + 5 }, Cmd.none
+        { model with
+            focusMinutes = model.focusMinutes + 5
+            secondsLeft = (model.focusMinutes + 5) * 60 },
+        Cmd.none
 
     | DecreaseFocusTime ->
-        { model with focusMinutes = max 5 (model.focusMinutes - 5) }, Cmd.none
+        let newMinutes = max 5 (model.focusMinutes - 5)
+
+        { model with
+            focusMinutes = newMinutes
+            secondsLeft = newMinutes * 60 },
+        Cmd.none
 
     | CompleteQuest title ->
         let selectedQuest =
@@ -185,7 +193,7 @@ let update message model =
                 {
                     title = title
                     xpEarned = gainedXp
-                    completedAt = System.DateTime.Now
+                    completedAt = DateTime.Now
                 } :: model.questHistory
             else
                 model.questHistory
@@ -223,41 +231,52 @@ let update message model =
                 achievements = updatedAchievements
                 dailyChallengeCompleted = true },
             Cmd.none
-    | CompleteFocusSession ->
-        let gainedXp = model.focusMinutes
 
+    | StartFocusTimer ->
+        let updatedSeconds =
+            if model.secondsLeft <= 0 then model.focusMinutes * 60
+            else model.secondsLeft
+
+        { model with
+            timerRunning = true
+            focusSessionCompleted = false
+            secondsLeft = updatedSeconds },
+        timerCmd
+
+    | StopFocusTimer ->
+        { model with timerRunning = false }, Cmd.none
+
+    | Tick ->
+        if model.timerRunning && model.secondsLeft > 1 then
+            { model with secondsLeft = model.secondsLeft - 1 },
+            timerCmd
+        elif model.timerRunning && model.secondsLeft <= 1 then
+            { model with
+                timerRunning = false
+                secondsLeft = 0 },
+            Cmd.ofMsg CompleteFocusSession
+        else
+            model, Cmd.none
+
+    | CompleteFocusSession ->
+        let gainedXp = 50
         let newXp = model.player.xp + gainedXp
         let newLevel = calculateLevel newXp model.player.level
 
         let updatedPlayer =
             { model.player with xp = newXp; level = newLevel }
 
-        let updatedQuestHistory =
+        let updatedHistory =
             {
-                title = "Completed focus session"
+                title = "Focus Session"
                 xpEarned = gainedXp
-                completedAt = System.DateTime.Now
+                completedAt = DateTime.Now
             } :: model.questHistory
 
         { model with
             player = updatedPlayer
-            questHistory = updatedQuestHistory },
-        Cmd.none
-
-    | StartFocusTimer ->
-        let updatedSeconds =
-            if model.secondsLeft <= 0 then
-                model.focusMinutes * 60
-            else
-                model.secondsLeft
-
-        { model with
-            timerRunning = true
-            secondsLeft = updatedSeconds },
-        timerCmd
-
-    | StopFocusTimer ->
-        { model with timerRunning = false },
+            questHistory = updatedHistory
+            focusSessionCompleted = true },
         Cmd.none
 
     | ResetFocusTimer ->
@@ -267,39 +286,8 @@ let update message model =
             focusSessionCompleted = false },
         Cmd.none
 
-    | Tick ->
-        if model.timerRunning && model.secondsLeft > 0 then
-            { model with secondsLeft = model.secondsLeft - 1 },
-            timerCmd
-        else
-            { model with timerRunning = false },
-            Cmd.ofMsg CompleteFocusSession
-    | CompleteFocusSession ->
-        let gainedXp = 50
-
-        let newXp = model.player.xp + gainedXp
-        let newLevel = calculateLevel newXp model.player.level
-
-        let updatedPlayer =
-            { model.player with
-                xp = newXp
-                level = newLevel }
-
-        let updatedHistory =
-            {
-                title = "Focus Session"
-                xpEarned = gainedXp
-                completedAt = System.DateTime.Now
-            } :: model.questHistory
-
-        { model with
-            player = updatedPlayer
-            focusSessionCompleted = true
-            questHistory = updatedHistory },
-        Cmd.none
-
     | ResetProgress ->
-            initModel, Cmd.none
+        initModel, Cmd.none
 
 let router = Router.infer SetPage (fun model -> model.page)
 
@@ -312,10 +300,12 @@ let buttonStyle active =
 let statBox title value =
     div {
         attr.style "background:#1e293b; border:1px solid #334155; border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.35);"
+
         h3 {
             attr.style "color:#38bdf8; margin-top:0;"
             text title
         }
+
         p {
             attr.style "font-size:26px; font-weight:800; margin-bottom:0;"
             text value
@@ -354,6 +344,7 @@ let homePage model dispatch =
 
         div {
             attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; margin-bottom:24px;"
+
             h3 {
                 attr.style "margin-top:0; color:#facc15;"
                 text "XP Progress"
@@ -361,6 +352,7 @@ let homePage model dispatch =
 
             div {
                 attr.style "height:16px; background:#334155; border-radius:999px; overflow:hidden;"
+
                 div {
                     attr.style ("height:100%; width:" + string xpPercent + "%; background:linear-gradient(90deg,#22c55e,#38bdf8);")
                 }
@@ -491,21 +483,21 @@ let focusPage model dispatch =
                 text "Stop Timer"
             }
 
+            button {
+                attr.style "margin-top:20px; padding:12px 22px; border:none; border-radius:10px; background:#2563eb; color:white; font-weight:700; cursor:pointer;"
+                on.click (fun _ -> dispatch ResetFocusTimer)
+                text "Reset Timer"
+            }
+
             if model.focusSessionCompleted then
                 div {
                     attr.style "margin-top:20px; padding:18px; border-radius:14px; background:#14532d; color:#dcfce7; font-weight:700;"
                     text "Focus session completed! +50 XP earned ⚔️"
                 }
-
-            button {
-                attr.style "margin-top:14px; padding:12px 22px; border:none; border-radius:10px; background:#2563eb; color:white; font-weight:700; cursor:pointer;"
-                on.click (fun _ -> dispatch ResetFocusTimer)
-                text "Reset Timer"
-            }
         }
     }
-    
-let statsPage model =   
+
+let statsPage model =
     let completed =
         model.quests |> List.filter (fun q -> q.completed) |> List.length
 

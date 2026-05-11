@@ -1,0 +1,33 @@
+[33md640813[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mLeave-my-changes-on-main[m[33m, [m[1;31morigin/Leave-my-changes-on-main[m[33m)[m feat: add focus session reset and completion UI
+[33m13c9b03[m fix: resume focus timer after stop
+[33me6b9ced[m feat: add focus session completion rewards
+[33mb259139[m feat: add automatic focus countdown timer
+[33m36066fc[m feat: add manual focus timer controls
+[33ma892151[m feat: add timer system and improve focus session UI
+[33m7561ffc[m refactor: stabilize focus session reward flow
+[33m8a2177a[m fix: improve daily challenge and stats page
+[33m40f410b[m fix: require completed quest before claiming daily reward
+[33md0feac5[m fix: require completed quest before claiming daily reward
+[33m16d7719[m feat: add quest history tracking and stats display
+[33m28ab147[m feat: track completed quest history in app state
+[33m24d2a6d[m feat: add sqlite progress service foundation
+[33md3ef0b0[m feat: add sqlite progress service foundation
+[33m19a5bc3[m feat: initialize sqlite database
+[33mac0dc3b[m chore: add sqlite dependency
+[33m98c5f0e[m chore: remove unused template service code
+[33m4662727[m Add daily challenge and streak system
+[33me5edb1f[m feat: add settings page and reset progress feature
+[33mb1f40a1[m feat: add settings page
+[33mc58243f[m feat: display current streak on stats page
+[33m8647e65[m feat: add daily streak progression system
+[33mc871c96[m feat: add achievements dashboard and unlock tracking
+[33m78c3b99[m feat: add achievement unlock system
+[33mf12b763[m feat: add achievement data model
+[33m43b8d1f[m feat: convert UI to English
+[33mb56b5de[m feat: improve stats page with progress summary
+[33me2702de[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m feat: gamified focus app with quests, XP system and styled UI in F#
+[33m0cfb932[m feat: display quests on dashboard
+[33m81e4262[m feat: display quests on dashboard
+[33mc362fb5[m feat: working FocusQuest base app with custom domain model
+[33m3ca73b5[m chore: add gitignore and remove build files
+[33m844b380[m Initial commit

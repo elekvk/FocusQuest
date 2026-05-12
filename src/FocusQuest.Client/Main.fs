@@ -78,6 +78,7 @@ type Model =
         secondsLeft: int
         focusSessionCompleted: bool
         shopItems: ShopItem list
+        equippedItem: string option
     }
 
 let initModel =
@@ -125,6 +126,7 @@ let initModel =
                     purchased = false
                 }
             ]
+        equippedItem = None    
     }
 
 type Message =
@@ -140,6 +142,7 @@ type Message =
     | ResetFocusTimer
     | BuyShopItem of string
     | ResetProgress
+    | EquipItem of string
 
 let timerCmd =
     Cmd.OfAsync.perform
@@ -344,6 +347,18 @@ let update message model =
         | _ ->
             model, Cmd.none
 
+    | EquipItem itemName ->
+        let ownsItem =
+            model.shopItems
+            |> List.exists (fun item ->
+                item.name = itemName && item.purchased)
+
+        if ownsItem then
+            { model with equippedItem = Some itemName },
+            Cmd.none
+        else
+            model, Cmd.none
+
     | ResetProgress ->
         initModel, Cmd.none
 
@@ -398,6 +413,12 @@ let homePage model dispatch =
             statBox "Player" model.player.name
             statBox "Level" (string model.player.level)
             statBox "XP" (string model.player.xp + " / " + string requiredXp)
+
+            statBox
+                "Equipped Reward"
+                (match model.equippedItem with
+                | Some item -> item
+                | None -> "None")
         }
 
         div {
@@ -732,7 +753,7 @@ let shopPage model dispatch =
         }
     }
 
-let inventoryPage model =
+let inventoryPage model dispatch =
     let purchasedItems =
         model.shopItems |> List.filter (fun item -> item.purchased)
 
@@ -784,9 +805,20 @@ let inventoryPage model =
                             attr.style "color:#dcfce7; font-weight:800;"
                             text "Unlocked reward"
                         }
+                        if model.equippedItem = Some item.name then
+                            p {
+                                attr.style "color:#facc15; font-weight:800;"
+                                text "Equipped"
+                            }
+                        else
+                            button {
+                                attr.style "margin-top:12px; padding:10px 18px; border-radius:10px; border:none; background:#38bdf8; color:#082f49; cursor:pointer; font-weight:800;"
+                                on.click (fun _ -> dispatch (EquipItem item.name))
+                                text "Equip Item"
+                            }
                     }
             }
-    }    
+    }       
 
 let settingsPage model dispatch =
     div {
@@ -861,7 +893,7 @@ let view model dispatch =
                 on.click (fun _ -> dispatch (SetPage Inventory))
                 text "Inventory"
             }
-            
+
             button {
                 attr.style (buttonStyle (model.page = Settings))
                 on.click (fun _ -> dispatch (SetPage Settings))
@@ -874,7 +906,7 @@ let view model dispatch =
         | Focus -> focusPage model dispatch
         | Stats -> statsPage model
         | Shop -> shopPage model dispatch
-        | Inventory -> inventoryPage model
+        | Inventory -> inventoryPage model dispatch
         | Settings -> settingsPage model dispatch
     }
 

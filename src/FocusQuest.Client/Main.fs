@@ -9,6 +9,8 @@ type Page =
     | [<EndPoint "/">] Home
     | [<EndPoint "/focus">] Focus
     | [<EndPoint "/stats">] Stats
+    | [<EndPoint "/shop">] Shop
+    | [<EndPoint "/inventory">] Inventory
     | [<EndPoint "/settings">] Settings
 
 type Difficulty =
@@ -36,6 +38,14 @@ type Achievement =
         title: string
         description: string
         unlocked: bool
+    }
+
+type ShopItem =
+    {
+        name: string
+        description: string
+        cost: int
+        purchased: bool
     }
 
 type QuestHistory =
@@ -67,6 +77,7 @@ type Model =
         timerRunning: bool
         secondsLeft: int
         focusSessionCompleted: bool
+        shopItems: ShopItem list
     }
 
 let initModel =
@@ -93,6 +104,27 @@ let initModel =
         timerRunning = false
         secondsLeft = 25 * 60
         focusSessionCompleted = false
+        shopItems =
+            [
+                {
+                    name = "Golden Sword"
+                    description = "A cosmetic reward for focused warriors."
+                    cost = 100
+                    purchased = false
+                }
+                {
+                    name = "Focus Crown"
+                    description = "Shows that you are serious about your focus journey."
+                    cost = 150
+                    purchased = false
+                }
+                {
+                    name = "XP Booster Badge"
+                    description = "A badge for players who consistently complete quests."
+                    cost = 200
+                    purchased = false
+                }
+            ]
     }
 
 type Message =
@@ -106,6 +138,7 @@ type Message =
     | StopFocusTimer
     | Tick
     | ResetFocusTimer
+    | BuyShopItem of string
     | ResetProgress
 
 let timerCmd =
@@ -285,6 +318,31 @@ let update message model =
             secondsLeft = model.focusMinutes * 60
             focusSessionCompleted = false },
         Cmd.none
+
+    | BuyShopItem itemName ->
+        let selectedItem =
+            model.shopItems |> List.tryFind (fun item -> item.name = itemName)
+
+        match selectedItem with
+        | Some item when not item.purchased && model.player.xp >= item.cost ->
+            let updatedItems =
+                model.shopItems
+                |> List.map (fun shopItem ->
+                    if shopItem.name = itemName then
+                        { shopItem with purchased = true }
+                    else
+                        shopItem)
+
+            let updatedPlayer =
+                { model.player with xp = model.player.xp - item.cost }
+
+            { model with
+                player = updatedPlayer
+                shopItems = updatedItems },
+            Cmd.none
+
+        | _ ->
+            model, Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
@@ -605,6 +663,131 @@ let statsPage model =
         }
     }
 
+let shopPage model dispatch =
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Reward Shop"
+        }
+
+        p {
+            attr.style "font-size:18px; color:#cbd5e1;"
+            text "Spend your earned XP on cosmetic rewards and focus achievements."
+        }
+
+        div {
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:22px; margin-bottom:24px;"
+
+            h2 {
+                attr.style "color:#facc15; margin-top:0;"
+                text ("Available XP: " + string model.player.xp)
+            }
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px;"
+
+            for item in model.shopItems do
+                div {
+                    attr.style (
+                        if item.purchased then
+                            "background:linear-gradient(135deg,#14532d,#166534); border:1px solid #22c55e; border-radius:16px; padding:22px;"
+                        else
+                            "background:#0f172a; border:1px solid #334155; border-radius:16px; padding:22px;"
+                    )
+
+                    h3 {
+                        attr.style "color:#38bdf8; margin-top:0;"
+                        text item.name
+                    }
+
+                    p {
+                        text item.description
+                    }
+
+                    p {
+                        attr.style "color:#facc15; font-weight:700;"
+                        text ("Cost: " + string item.cost + " XP")
+                    }
+
+                    if item.purchased then
+                        p {
+                            attr.style "color:#22c55e; font-weight:800;"
+                            text "Purchased"
+                        }
+                    elif model.player.xp >= item.cost then
+                        button {
+                            attr.style "padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(90deg,#22c55e,#38bdf8); color:#082f49; cursor:pointer; font-weight:800;"
+                            on.click (fun _ -> dispatch (BuyShopItem item.name))
+                            text "Buy Item"
+                        }
+                    else
+                        p {
+                            attr.style "color:#94a3b8;"
+                            text "Not enough XP"
+                        }
+                }
+        }
+    }
+
+let inventoryPage model =
+    let purchasedItems =
+        model.shopItems |> List.filter (fun item -> item.purchased)
+
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Inventory"
+        }
+
+        p {
+            attr.style "font-size:18px; color:#cbd5e1;"
+            text "Your unlocked rewards and focus trophies."
+        }
+
+        if List.isEmpty purchasedItems then
+            div {
+                attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; margin-top:24px;"
+
+                h2 {
+                    attr.style "color:#facc15; margin-top:0;"
+                    text "No rewards unlocked yet"
+                }
+
+                p {
+                    attr.style "color:#94a3b8;"
+                    text "Complete quests and focus sessions to earn XP, then buy rewards in the Shop."
+                }
+            }
+        else
+            div {
+                attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; margin-top:24px;"
+
+                for item in purchasedItems do
+                    div {
+                        attr.style "background:linear-gradient(135deg,#14532d,#166534); border:1px solid #22c55e; border-radius:16px; padding:22px;"
+
+                        h3 {
+                            attr.style "color:#38bdf8; margin-top:0;"
+                            text item.name
+                        }
+
+                        p {
+                            text item.description
+                        }
+
+                        p {
+                            attr.style "color:#dcfce7; font-weight:800;"
+                            text "Unlocked reward"
+                        }
+                    }
+            }
+    }    
+
 let settingsPage model dispatch =
     div {
         attr.style "padding:40px;"
@@ -668,6 +851,18 @@ let view model dispatch =
             }
 
             button {
+                attr.style (buttonStyle (model.page = Shop))
+                on.click (fun _ -> dispatch (SetPage Shop))
+                text "Shop"
+            }
+
+            button {
+                attr.style (buttonStyle (model.page = Inventory))
+                on.click (fun _ -> dispatch (SetPage Inventory))
+                text "Inventory"
+            }
+            
+            button {
                 attr.style (buttonStyle (model.page = Settings))
                 on.click (fun _ -> dispatch (SetPage Settings))
                 text "Settings"
@@ -678,6 +873,8 @@ let view model dispatch =
         | Home -> homePage model dispatch
         | Focus -> focusPage model dispatch
         | Stats -> statsPage model
+        | Shop -> shopPage model dispatch
+        | Inventory -> inventoryPage model
         | Settings -> settingsPage model dispatch
     }
 

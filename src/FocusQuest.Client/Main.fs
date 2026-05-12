@@ -40,11 +40,18 @@ type Achievement =
         unlocked: bool
     }
 
+type Rarity =
+    | Common
+    | Rare
+    | Epic
+    | Legendary
+
 type ShopItem =
     {
         name: string
         description: string
         cost: int
+        rarity: Rarity
         purchased: bool
     }
 
@@ -111,18 +118,21 @@ let initModel =
                     name = "Golden Sword"
                     description = "A cosmetic reward for focused warriors."
                     cost = 100
+                    rarity = Rare
                     purchased = false
                 }
                 {
                     name = "Focus Crown"
                     description = "Shows that you are serious about your focus journey."
                     cost = 150
+                    rarity = Epic
                     purchased = false
                 }
                 {
                     name = "XP Booster Badge"
                     description = "A badge for players who consistently complete quests."
                     cost = 200
+                    rarity = Legendary
                     purchased = false
                 }
             ]
@@ -384,6 +394,13 @@ let statBox title value =
             text value
         }
     }
+
+let rarityColor rarity =
+    match rarity with
+    | Common -> "#94a3b8"
+    | Rare -> "#38bdf8"
+    | Epic -> "#c084fc"
+    | Legendary -> "#facc15"
 
 let homePage model dispatch =
     let requiredXp = model.player.level * 100
@@ -799,6 +816,17 @@ let inventoryPage model dispatch =
 
                         p {
                             text item.description
+                        }
+
+                        p {
+                            attr.style ("font-weight:800; color:" + rarityColor item.rarity)
+                            text (
+                                match item.rarity with
+                                | Common -> "Common"
+                                | Rare -> "Rare"
+                                | Epic -> "Epic"
+                                | Legendary -> "Legendary"
+                            )
                         }
 
                         p {

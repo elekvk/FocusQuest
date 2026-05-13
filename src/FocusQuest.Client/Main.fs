@@ -86,6 +86,7 @@ type Model =
         quests: Quest list
         achievements: Achievement list
         streak: int
+        xpMultiplier: float
         dailyChallengeCompleted: bool
         dailyChallengeRewardXp: int
         questHistory: QuestHistory list
@@ -116,6 +117,7 @@ let initModel =
                 { title = "Focused Hero"; description = "Complete all daily quests."; unlocked = false }
             ]
         streak = 0
+        xpMultiplier = 1.0
         dailyChallengeCompleted = false
         dailyChallengeRewardXp = 40
         questHistory = []
@@ -224,6 +226,12 @@ let updateAchievements (player: Player) (quests: Quest list) (achievements: Achi
 let calculateLevel xp currentLevel =
     if xp >= currentLevel * 100 then currentLevel + 1
     else currentLevel
+
+let calculateMultiplier streak =
+    if streak >= 14 then 1.5
+    elif streak >= 7 then 1.25
+    elif streak >= 3 then 1.1
+    else 1.0
 
 let rarityColor rarity =
     match rarity with
@@ -334,12 +342,16 @@ let update message model =
         let newStreak =
             if gainedXp > 0 then model.streak + 1
             else model.streak
+            
+        let newMultiplier =
+            calculateMultiplier newStreak
 
         { model with
             quests = updatedQuests
             player = updatedPlayer
             achievements = updatedAchievements
             streak = newStreak
+            xpMultiplier = newMultiplier
             questHistory = updatedQuestHistory },
         Cmd.none
 
@@ -400,7 +412,10 @@ let update message model =
             model, Cmd.none
 
     | CompleteFocusSession ->
-        let gainedXp = 50
+        let baseXp = 50
+
+        let gainedXp =
+            int (float baseXp * model.xpMultiplier)
 
         let newXp =
             model.player.xp + gainedXp
@@ -572,6 +587,8 @@ let homePage model dispatch =
             statBox "Player" model.player.name
             statBox "Level" (string model.player.level)
             statBox "XP" (string model.player.xp + " / " + string requiredXp)
+            statBox "Streak" (string model.streak + " 🔥")
+            statBox "Multiplier" (string model.xpMultiplier + "x")
 
             statBox
                 "Equipped Reward"
@@ -756,7 +773,7 @@ let focusPage model dispatch =
             if model.focusSessionCompleted then
                 div {
                     attr.style "margin-top:20px; padding:18px; border-radius:14px; background:#14532d; color:#dcfce7; font-weight:700;"
-                    text "Focus session completed! +50 XP earned ⚔️"
+                    text ("Focus session completed! +" + string (int (float 50 * model.xpMultiplier)) + " XP earned ⚔️")
                 }
         }
     }
@@ -794,6 +811,7 @@ let statsPage model =
             statBox "Progress" (string progress + "%")
             statBox "Focus minutes" (string model.focusMinutes)
             statBox "Current level" (string model.player.level)
+            statBox "XP Multiplier" (string model.xpMultiplier + "x")
             statBox "Rewards" (string purchasedCount + " / " + string model.shopItems.Length)
         }
 

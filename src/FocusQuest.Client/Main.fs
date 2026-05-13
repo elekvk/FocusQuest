@@ -11,12 +11,19 @@ type Page =
     | [<EndPoint "/stats">] Stats
     | [<EndPoint "/shop">] Shop
     | [<EndPoint "/inventory">] Inventory
+    | [<EndPoint "/rewards">] Rewards
     | [<EndPoint "/settings">] Settings
 
 type Difficulty =
     | Easy
     | Medium
     | Hard
+
+type Rarity =
+    | Common
+    | Rare
+    | Epic
+    | Legendary
 
 type Quest =
     {
@@ -40,12 +47,6 @@ type Achievement =
         unlocked: bool
     }
 
-type Rarity =
-    | Common
-    | Rare
-    | Epic
-    | Legendary
-
 type ShopItem =
     {
         name: string
@@ -60,6 +61,13 @@ type QuestHistory =
         title: string
         xpEarned: int
         completedAt: DateTime
+    }
+
+type RewardHistory =
+    {
+        rewardName: string
+        rarity: Rarity
+        unlockedAt: DateTime
     }
 
 type ProgressService =
@@ -86,6 +94,8 @@ type Model =
         focusSessionCompleted: bool
         shopItems: ShopItem list
         equippedItem: string option
+        lootMessage: string option
+        rewardHistory: RewardHistory list
     }
 
 let initModel =
@@ -115,9 +125,23 @@ let initModel =
         shopItems =
             [
                 {
+                    name = "Starter Cloak"
+                    description = "A common reward for beginning your focus journey."
+                    cost = 50
+                    rarity = Common
+                    purchased = false
+                }
+                {
                     name = "Golden Sword"
                     description = "A cosmetic reward for focused warriors."
                     cost = 100
+                    rarity = Rare
+                    purchased = false
+                }
+                {
+                    name = "Crystal Timer"
+                    description = "A rare timer skin for disciplined players."
+                    cost = 120
                     rarity = Rare
                     purchased = false
                 }
@@ -135,8 +159,17 @@ let initModel =
                     rarity = Legendary
                     purchased = false
                 }
+                {
+                    name = "Dragon Focus Emblem"
+                    description = "A legendary symbol of deep work mastery."
+                    cost = 250
+                    rarity = Legendary
+                    purchased = false
+                }
             ]
-        equippedItem = None    
+        equippedItem = None
+        lootMessage = None
+        rewardHistory = []
     }
 
 type Message =
@@ -151,8 +184,9 @@ type Message =
     | Tick
     | ResetFocusTimer
     | BuyShopItem of string
-    | ResetProgress
     | EquipItem of string
+    | ClearLootMessage
+    | ResetProgress
 
 let timerCmd =
     Cmd.OfAsync.perform
@@ -169,7 +203,7 @@ let xpForDifficulty difficulty =
     | Medium -> 50
     | Hard -> 80
 
-let updateAchievements player quests achievements =
+let updateAchievements (player: Player) (quests: Quest list) (achievements: Achievement list) =
     let completedCount =
         quests |> List.filter (fun q -> q.completed) |> List.length
 
@@ -177,19 +211,63 @@ let updateAchievements player quests achievements =
         completedCount = quests.Length
 
     achievements
-    |> List.map (fun (a: Achievement) ->
-        if a.title = "First Quest" && completedCount >= 1 then
-            { a with unlocked = true }
-        elif a.title = "Level Up" && player.level >= 2 then
-            { a with unlocked = true }
-        elif a.title = "Focused Hero" && allCompleted then
-            { a with unlocked = true }
+    |> List.map (fun achievement ->
+        if achievement.title = "First Quest" && completedCount >= 1 then
+            { achievement with unlocked = true }
+        elif achievement.title = "Level Up" && player.level >= 2 then
+            { achievement with unlocked = true }
+        elif achievement.title = "Focused Hero" && allCompleted then
+            { achievement with unlocked = true }
         else
-            a)
+            achievement)
 
 let calculateLevel xp currentLevel =
     if xp >= currentLevel * 100 then currentLevel + 1
     else currentLevel
+
+let rarityColor rarity =
+    match rarity with
+    | Common -> "#94a3b8"
+    | Rare -> "#38bdf8"
+    | Epic -> "#c084fc"
+    | Legendary -> "#facc15"
+
+let rarityText rarity =
+    match rarity with
+    | Common -> "Common"
+    | Rare -> "Rare"
+    | Epic -> "Epic"
+    | Legendary -> "Legendary"
+
+let random = Random()
+
+let generateLoot (shopItems: ShopItem list) =
+    let availableItems =
+        shopItems
+        |> List.filter (fun item -> not item.purchased)
+
+    if List.isEmpty availableItems then
+        None
+    else
+        let roll = random.Next(100)
+
+        let desiredRarity =
+            if roll < 50 then Common
+            elif roll < 80 then Rare
+            elif roll < 95 then Epic
+            else Legendary
+
+        let matchingItems =
+            availableItems
+            |> List.filter (fun item -> item.rarity = desiredRarity)
+
+        let finalPool =
+            if List.isEmpty matchingItems then
+                availableItems
+            else
+                matchingItems
+
+        Some finalPool.[random.Next(finalPool.Length)]
 
 let update message model =
     match message with
@@ -203,7 +281,8 @@ let update message model =
         Cmd.none
 
     | DecreaseFocusTime ->
-        let newMinutes = max 5 (model.focusMinutes - 5)
+        let newMinutes =
+            max 5 (model.focusMinutes - 5)
 
         { model with
             focusMinutes = newMinutes
@@ -212,24 +291,32 @@ let update message model =
 
     | CompleteQuest title ->
         let selectedQuest =
-            model.quests |> List.tryFind (fun q -> q.title = title)
+            model.quests
+            |> List.tryFind (fun quest -> quest.title = title)
 
         let gainedXp =
             match selectedQuest with
-            | Some q when not q.completed -> xpForDifficulty q.difficulty
+            | Some quest when not quest.completed -> xpForDifficulty quest.difficulty
             | _ -> 0
 
         let updatedQuests =
             model.quests
-            |> List.map (fun q ->
-                if q.title = title then { q with completed = true }
-                else q)
+            |> List.map (fun quest ->
+                if quest.title = title then
+                    { quest with completed = true }
+                else
+                    quest)
 
-        let newXp = model.player.xp + gainedXp
-        let newLevel = calculateLevel newXp model.player.level
+        let newXp =
+            model.player.xp + gainedXp
+
+        let newLevel =
+            calculateLevel newXp model.player.level
 
         let updatedPlayer =
-            { model.player with xp = newXp; level = newLevel }
+            { model.player with
+                xp = newXp
+                level = newLevel }
 
         let updatedAchievements =
             updateAchievements updatedPlayer updatedQuests model.achievements
@@ -258,16 +345,22 @@ let update message model =
 
     | CompleteDailyChallenge ->
         let hasCompletedQuest =
-            model.quests |> List.exists (fun q -> q.completed)
+            model.quests
+            |> List.exists (fun quest -> quest.completed)
 
         if model.dailyChallengeCompleted || not hasCompletedQuest then
             model, Cmd.none
         else
-            let newXp = model.player.xp + model.dailyChallengeRewardXp
-            let newLevel = calculateLevel newXp model.player.level
+            let newXp =
+                model.player.xp + model.dailyChallengeRewardXp
+
+            let newLevel =
+                calculateLevel newXp model.player.level
 
             let updatedPlayer =
-                { model.player with xp = newXp; level = newLevel }
+                { model.player with
+                    xp = newXp
+                    level = newLevel }
 
             let updatedAchievements =
                 updateAchievements updatedPlayer model.quests model.achievements
@@ -280,8 +373,10 @@ let update message model =
 
     | StartFocusTimer ->
         let updatedSeconds =
-            if model.secondsLeft <= 0 then model.focusMinutes * 60
-            else model.secondsLeft
+            if model.secondsLeft <= 0 then
+                model.focusMinutes * 60
+            else
+                model.secondsLeft
 
         { model with
             timerRunning = true
@@ -306,11 +401,17 @@ let update message model =
 
     | CompleteFocusSession ->
         let gainedXp = 50
-        let newXp = model.player.xp + gainedXp
-        let newLevel = calculateLevel newXp model.player.level
+
+        let newXp =
+            model.player.xp + gainedXp
+
+        let newLevel =
+            calculateLevel newXp model.player.level
 
         let updatedPlayer =
-            { model.player with xp = newXp; level = newLevel }
+            { model.player with
+                xp = newXp
+                level = newLevel }
 
         let updatedHistory =
             {
@@ -319,10 +420,46 @@ let update message model =
                 completedAt = DateTime.Now
             } :: model.questHistory
 
+        let lootReward =
+            generateLoot model.shopItems
+
+        let finalShopItems =
+            match lootReward with
+            | Some loot ->
+                model.shopItems
+                |> List.map (fun item ->
+                    if item.name = loot.name then
+                        { item with purchased = true }
+                    else
+                        item)
+            | None ->
+                model.shopItems
+
+        let updatedRewardHistory =
+            match lootReward with
+            | Some loot ->
+                {
+                    rewardName = loot.name
+                    rarity = loot.rarity
+                    unlockedAt = DateTime.Now
+                } :: model.rewardHistory
+            | None ->
+                model.rewardHistory
+
+        let lootMessage =
+            match lootReward with
+            | Some loot ->
+                Some ("Loot unlocked: " + loot.name + " (" + rarityText loot.rarity + ")")
+            | None ->
+                Some "Focus session completed. No new loot available."
+
         { model with
             player = updatedPlayer
             questHistory = updatedHistory
-            focusSessionCompleted = true },
+            focusSessionCompleted = true
+            shopItems = finalShopItems
+            rewardHistory = updatedRewardHistory
+            lootMessage = lootMessage },
         Cmd.none
 
     | ResetFocusTimer ->
@@ -334,7 +471,8 @@ let update message model =
 
     | BuyShopItem itemName ->
         let selectedItem =
-            model.shopItems |> List.tryFind (fun item -> item.name = itemName)
+            model.shopItems
+            |> List.tryFind (fun item -> item.name = itemName)
 
         match selectedItem with
         | Some item when not item.purchased && model.player.xp >= item.cost ->
@@ -360,19 +498,21 @@ let update message model =
     | EquipItem itemName ->
         let ownsItem =
             model.shopItems
-            |> List.exists (fun item ->
-                item.name = itemName && item.purchased)
+            |> List.exists (fun item -> item.name = itemName && item.purchased)
 
         if ownsItem then
-            { model with equippedItem = Some itemName },
-            Cmd.none
+            { model with equippedItem = Some itemName }, Cmd.none
         else
             model, Cmd.none
+
+    | ClearLootMessage ->
+        { model with lootMessage = None }, Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
 
-let router = Router.infer SetPage (fun model -> model.page)
+let router =
+    Router.infer SetPage (fun model -> model.page)
 
 let buttonStyle active =
     if active then
@@ -395,18 +535,19 @@ let statBox title value =
         }
     }
 
-let rarityColor rarity =
-    match rarity with
-    | Common -> "#94a3b8"
-    | Rare -> "#38bdf8"
-    | Epic -> "#c084fc"
-    | Legendary -> "#facc15"
+let rarityLabel (item: ShopItem) =
+    p {
+        attr.style ("font-weight:800; color:" + rarityColor item.rarity)
+        text (rarityText item.rarity)
+    }
 
 let homePage model dispatch =
-    let requiredXp = model.player.level * 100
+    let requiredXp =
+        model.player.level * 100
 
     let hasCompletedQuest =
-        model.quests |> List.exists (fun q -> q.completed)
+        model.quests
+        |> List.exists (fun quest -> quest.completed)
 
     let xpPercent =
         (float model.player.xp / float requiredXp) * 100.0
@@ -426,7 +567,8 @@ let homePage model dispatch =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+
             statBox "Player" model.player.name
             statBox "Level" (string model.player.level)
             statBox "XP" (string model.player.xp + " / " + string requiredXp)
@@ -434,8 +576,8 @@ let homePage model dispatch =
             statBox
                 "Equipped Reward"
                 (match model.equippedItem with
-                | Some item -> item
-                | None -> "None")
+                 | Some item -> item
+                 | None -> "None")
         }
 
         div {
@@ -489,6 +631,22 @@ let homePage model dispatch =
                 }
         }
 
+        match model.lootMessage with
+        | Some message ->
+            div {
+                attr.style "margin-bottom:24px; padding:18px; border-radius:14px; background:#14532d; color:#dcfce7; font-weight:800;"
+
+                text message
+
+                button {
+                    attr.style "margin-left:20px; padding:8px 14px; border:none; border-radius:8px; cursor:pointer;"
+                    on.click (fun _ -> dispatch ClearLootMessage)
+                    text "Close"
+                }
+            }
+        | None ->
+            empty()
+
         h3 {
             attr.style "font-size:26px; color:#facc15;"
             text "Today’s Quests"
@@ -503,8 +661,13 @@ let homePage model dispatch =
                     text quest.title
                 }
 
-                p { text ("Duration: " + string quest.duration + " minutes") }
-                p { text ("Difficulty: " + string quest.difficulty) }
+                p {
+                    text ("Duration: " + string quest.duration + " minutes")
+                }
+
+                p {
+                    text ("Difficulty: " + string quest.difficulty)
+                }
 
                 p {
                     if quest.completed then text "Status: Completed"
@@ -521,9 +684,14 @@ let homePage model dispatch =
     }
 
 let focusPage model dispatch =
-    let minutesLeft = model.secondsLeft / 60
-    let remainingSeconds = model.secondsLeft % 60
-    let timerText = sprintf "%02d:%02d" minutesLeft remainingSeconds
+    let minutesLeft =
+        model.secondsLeft / 60
+
+    let remainingSeconds =
+        model.secondsLeft % 60
+
+    let timerText =
+        sprintf "%02d:%02d" minutesLeft remainingSeconds
 
     div {
         attr.style "padding:40px;"
@@ -595,13 +763,21 @@ let focusPage model dispatch =
 
 let statsPage model =
     let completed =
-        model.quests |> List.filter (fun q -> q.completed) |> List.length
+        model.quests
+        |> List.filter (fun quest -> quest.completed)
+        |> List.length
 
-    let total = model.quests.Length
+    let total =
+        model.quests.Length
 
     let progress =
         if total = 0 then 0
         else completed * 100 / total
+
+    let purchasedCount =
+        model.shopItems
+        |> List.filter (fun item -> item.purchased)
+        |> List.length
 
     div {
         attr.style "padding:40px;"
@@ -613,11 +789,12 @@ let statsPage model =
 
         div {
             attr.style "display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+
             statBox "Completed quests" (string completed + " / " + string total)
             statBox "Progress" (string progress + "%")
             statBox "Focus minutes" (string model.focusMinutes)
             statBox "Current level" (string model.player.level)
-            statBox "Current streak" (string model.streak + " days 🔥")
+            statBox "Rewards" (string purchasedCount + " / " + string model.shopItems.Length)
         }
 
         div {
@@ -651,7 +828,9 @@ let statsPage model =
                         text achievement.title
                     }
 
-                    p { text achievement.description }
+                    p {
+                        text achievement.description
+                    }
 
                     if achievement.unlocked then
                         p {
@@ -745,6 +924,8 @@ let shopPage model dispatch =
                         text item.description
                     }
 
+                    rarityLabel item
+
                     p {
                         attr.style "color:#facc15; font-weight:700;"
                         text ("Cost: " + string item.cost + " XP")
@@ -772,7 +953,8 @@ let shopPage model dispatch =
 
 let inventoryPage model dispatch =
     let purchasedItems =
-        model.shopItems |> List.filter (fun item -> item.purchased)
+        model.shopItems
+        |> List.filter (fun item -> item.purchased)
 
     div {
         attr.style "padding:40px;"
@@ -818,21 +1000,13 @@ let inventoryPage model dispatch =
                             text item.description
                         }
 
-                        p {
-                            attr.style ("font-weight:800; color:" + rarityColor item.rarity)
-                            text (
-                                match item.rarity with
-                                | Common -> "Common"
-                                | Rare -> "Rare"
-                                | Epic -> "Epic"
-                                | Legendary -> "Legendary"
-                            )
-                        }
+                        rarityLabel item
 
                         p {
                             attr.style "color:#dcfce7; font-weight:800;"
                             text "Unlocked reward"
                         }
+
                         if model.equippedItem = Some item.name then
                             p {
                                 attr.style "color:#facc15; font-weight:800;"
@@ -846,7 +1020,80 @@ let inventoryPage model dispatch =
                             }
                     }
             }
-    }       
+    }
+
+let rewardsPage model =
+    let legendaryCount =
+        model.rewardHistory
+        |> List.filter (fun reward -> reward.rarity = Legendary)
+        |> List.length
+
+    let epicCount =
+        model.rewardHistory
+        |> List.filter (fun reward -> reward.rarity = Epic)
+        |> List.length
+
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Reward History"
+        }
+
+        p {
+            attr.style "font-size:18px; color:#cbd5e1;"
+            text "Track the random loot rewards unlocked from completed focus sessions."
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+
+            statBox "Unlocked Rewards" (string model.rewardHistory.Length)
+            statBox "Legendary Rewards" (string legendaryCount)
+            statBox "Epic Rewards" (string epicCount)
+
+            statBox
+                "Equipped Item"
+                (match model.equippedItem with
+                 | Some item -> item
+                 | None -> "None")
+        }
+
+        if List.isEmpty model.rewardHistory then
+            div {
+                attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px;"
+
+                h2 {
+                    attr.style "color:#facc15;"
+                    text "No rewards unlocked yet"
+                }
+
+                p {
+                    attr.style "color:#94a3b8;"
+                    text "Complete focus sessions to discover random loot rewards."
+                }
+            }
+        else
+            for reward in model.rewardHistory do
+                div {
+                    attr.style "background:#0f172a; border:1px solid #334155; border-radius:16px; padding:22px; margin-top:18px;"
+
+                    h2 {
+                        attr.style ("color:" + rarityColor reward.rarity)
+                        text reward.rewardName
+                    }
+
+                    p {
+                        attr.style ("font-weight:800; color:" + rarityColor reward.rarity)
+                        text (rarityText reward.rarity)
+                    }
+
+                    p {
+                        text ("Unlocked at: " + reward.unlockedAt.ToString("g"))
+                    }
+                }
+    }
 
 let settingsPage model dispatch =
     div {
@@ -923,6 +1170,12 @@ let view model dispatch =
             }
 
             button {
+                attr.style (buttonStyle (model.page = Rewards))
+                on.click (fun _ -> dispatch (SetPage Rewards))
+                text "Rewards"
+            }
+
+            button {
                 attr.style (buttonStyle (model.page = Settings))
                 on.click (fun _ -> dispatch (SetPage Settings))
                 text "Settings"
@@ -935,6 +1188,7 @@ let view model dispatch =
         | Stats -> statsPage model
         | Shop -> shopPage model dispatch
         | Inventory -> inventoryPage model dispatch
+        | Rewards -> rewardsPage model
         | Settings -> settingsPage model dispatch
     }
 

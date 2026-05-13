@@ -12,6 +12,7 @@ type Page =
     | [<EndPoint "/shop">] Shop
     | [<EndPoint "/inventory">] Inventory
     | [<EndPoint "/rewards">] Rewards
+    | [<EndPoint "/boss">] Boss
     | [<EndPoint "/settings">] Settings
 
 type Difficulty =
@@ -70,6 +71,14 @@ type RewardHistory =
         unlockedAt: DateTime
     }
 
+type BossEnemy =
+    {
+        name: string
+        maxHp: int
+        currentHp: int
+        level: int
+    }
+
 type ProgressService =
     {
         saveQuestHistory: string * int -> Async<unit>
@@ -97,6 +106,7 @@ type Model =
         equippedItem: string option
         lootMessage: string option
         rewardHistory: RewardHistory list
+        boss: BossEnemy
     }
 
 let initModel =
@@ -172,6 +182,13 @@ let initModel =
         equippedItem = None
         lootMessage = None
         rewardHistory = []
+        boss =
+            {
+                name = "Shadow Dragon"
+                maxHp = 500
+                currentHp = 500
+                level = 1
+            }
     }
 
 type Message =
@@ -188,6 +205,7 @@ type Message =
     | BuyShopItem of string
     | EquipItem of string
     | ClearLootMessage
+    | AttackBoss
     | ResetProgress
 
 let timerCmd =
@@ -207,7 +225,7 @@ let xpForDifficulty difficulty =
 
 let updateAchievements (player: Player) (quests: Quest list) (achievements: Achievement list) =
     let completedCount =
-        quests |> List.filter (fun q -> q.completed) |> List.length
+        quests |> List.filter (fun quest -> quest.completed) |> List.length
 
     let allCompleted =
         completedCount = quests.Length
@@ -251,8 +269,7 @@ let random = Random()
 
 let generateLoot (shopItems: ShopItem list) =
     let availableItems =
-        shopItems
-        |> List.filter (fun item -> not item.purchased)
+        shopItems |> List.filter (fun item -> not item.purchased)
 
     if List.isEmpty availableItems then
         None
@@ -266,14 +283,11 @@ let generateLoot (shopItems: ShopItem list) =
             else Legendary
 
         let matchingItems =
-            availableItems
-            |> List.filter (fun item -> item.rarity = desiredRarity)
+            availableItems |> List.filter (fun item -> item.rarity = desiredRarity)
 
         let finalPool =
-            if List.isEmpty matchingItems then
-                availableItems
-            else
-                matchingItems
+            if List.isEmpty matchingItems then availableItems
+            else matchingItems
 
         Some finalPool.[random.Next(finalPool.Length)]
 
@@ -299,8 +313,7 @@ let update message model =
 
     | CompleteQuest title ->
         let selectedQuest =
-            model.quests
-            |> List.tryFind (fun quest -> quest.title = title)
+            model.quests |> List.tryFind (fun quest -> quest.title = title)
 
         let gainedXp =
             match selectedQuest with
@@ -310,10 +323,8 @@ let update message model =
         let updatedQuests =
             model.quests
             |> List.map (fun quest ->
-                if quest.title = title then
-                    { quest with completed = true }
-                else
-                    quest)
+                if quest.title = title then { quest with completed = true }
+                else quest)
 
         let newXp =
             model.player.xp + gainedXp
@@ -342,7 +353,7 @@ let update message model =
         let newStreak =
             if gainedXp > 0 then model.streak + 1
             else model.streak
-            
+
         let newMultiplier =
             calculateMultiplier newStreak
 
@@ -357,8 +368,7 @@ let update message model =
 
     | CompleteDailyChallenge ->
         let hasCompletedQuest =
-            model.quests
-            |> List.exists (fun quest -> quest.completed)
+            model.quests |> List.exists (fun quest -> quest.completed)
 
         if model.dailyChallengeCompleted || not hasCompletedQuest then
             model, Cmd.none
@@ -385,10 +395,8 @@ let update message model =
 
     | StartFocusTimer ->
         let updatedSeconds =
-            if model.secondsLeft <= 0 then
-                model.focusMinutes * 60
-            else
-                model.secondsLeft
+            if model.secondsLeft <= 0 then model.focusMinutes * 60
+            else model.secondsLeft
 
         { model with
             timerRunning = true
@@ -486,8 +494,7 @@ let update message model =
 
     | BuyShopItem itemName ->
         let selectedItem =
-            model.shopItems
-            |> List.tryFind (fun item -> item.name = itemName)
+            model.shopItems |> List.tryFind (fun item -> item.name = itemName)
 
         match selectedItem with
         | Some item when not item.purchased && model.player.xp >= item.cost ->
@@ -522,6 +529,63 @@ let update message model =
 
     | ClearLootMessage ->
         { model with lootMessage = None }, Cmd.none
+
+    | AttackBoss ->
+        let damage =
+            random.Next(20, 80)
+
+        let newHp =
+            max 0 (model.boss.currentHp - damage)
+
+        if newHp <= 0 then
+            let newBossLevel =
+                model.boss.level + 1
+
+            let scaledHp =
+                500 + (newBossLevel * 200)
+
+            let newBoss =
+                {
+                    name = "Ancient Titan Lv." + string newBossLevel
+                    maxHp = scaledHp
+                    currentHp = scaledHp
+                    level = newBossLevel
+                }
+
+            let rewardXp =
+                300
+
+            let newXp =
+                model.player.xp + rewardXp
+
+            let newLevel =
+                calculateLevel newXp model.player.level
+
+            let updatedPlayer =
+                {
+                    model.player with
+                        xp = newXp
+                        level = newLevel
+                }
+
+            {
+                model with
+                    player = updatedPlayer
+                    boss = newBoss
+                    lootMessage = Some ("Boss defeated! +" + string rewardXp + " XP earned ⚔️")
+            },
+            Cmd.none
+        else
+            {
+                model with
+                    boss =
+                        {
+                            model.boss with
+                                currentHp = newHp
+                        }
+                    lootMessage = Some ("Boss hit for " + string damage + " damage!")
+            },
+            Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
@@ -561,8 +625,7 @@ let homePage model dispatch =
         model.player.level * 100
 
     let hasCompletedQuest =
-        model.quests
-        |> List.exists (fun quest -> quest.completed)
+        model.quests |> List.exists (fun quest -> quest.completed)
 
     let xpPercent =
         (float model.player.xp / float requiredXp) * 100.0
@@ -587,8 +650,6 @@ let homePage model dispatch =
             statBox "Player" model.player.name
             statBox "Level" (string model.player.level)
             statBox "XP" (string model.player.xp + " / " + string requiredXp)
-            statBox "Streak" (string model.streak + " 🔥")
-            statBox "Multiplier" (string model.xpMultiplier + "x")
 
             statBox
                 "Equipped Reward"
@@ -710,6 +771,9 @@ let focusPage model dispatch =
     let timerText =
         sprintf "%02d:%02d" minutesLeft remainingSeconds
 
+    let focusReward =
+        int (float 50 * model.xpMultiplier)
+
     div {
         attr.style "padding:40px;"
 
@@ -773,16 +837,14 @@ let focusPage model dispatch =
             if model.focusSessionCompleted then
                 div {
                     attr.style "margin-top:20px; padding:18px; border-radius:14px; background:#14532d; color:#dcfce7; font-weight:700;"
-                    text ("Focus session completed! +" + string (int (float 50 * model.xpMultiplier)) + " XP earned ⚔️")
+                    text ("Focus session completed! +" + string focusReward + " XP earned ⚔️")
                 }
         }
     }
 
 let statsPage model =
     let completed =
-        model.quests
-        |> List.filter (fun quest -> quest.completed)
-        |> List.length
+        model.quests |> List.filter (fun quest -> quest.completed) |> List.length
 
     let total =
         model.quests.Length
@@ -792,9 +854,7 @@ let statsPage model =
         else completed * 100 / total
 
     let purchasedCount =
-        model.shopItems
-        |> List.filter (fun item -> item.purchased)
-        |> List.length
+        model.shopItems |> List.filter (fun item -> item.purchased) |> List.length
 
     div {
         attr.style "padding:40px;"
@@ -805,7 +865,7 @@ let statsPage model =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Completed quests" (string completed + " / " + string total)
             statBox "Progress" (string progress + "%")
@@ -827,6 +887,7 @@ let statsPage model =
             p { text ("Total XP: " + string model.player.xp) }
             p { text ("Quest completion: " + string progress + "%") }
             p { text ("Current streak: " + string model.streak + " days") }
+            p { text ("Current multiplier: " + string model.xpMultiplier + "x") }
         }
 
         div {
@@ -971,8 +1032,7 @@ let shopPage model dispatch =
 
 let inventoryPage model dispatch =
     let purchasedItems =
-        model.shopItems
-        |> List.filter (fun item -> item.purchased)
+        model.shopItems |> List.filter (fun item -> item.purchased)
 
     div {
         attr.style "padding:40px;"
@@ -1042,14 +1102,10 @@ let inventoryPage model dispatch =
 
 let rewardsPage model =
     let legendaryCount =
-        model.rewardHistory
-        |> List.filter (fun reward -> reward.rarity = Legendary)
-        |> List.length
+        model.rewardHistory |> List.filter (fun reward -> reward.rarity = Legendary) |> List.length
 
     let epicCount =
-        model.rewardHistory
-        |> List.filter (fun reward -> reward.rarity = Epic)
-        |> List.length
+        model.rewardHistory |> List.filter (fun reward -> reward.rarity = Epic) |> List.length
 
     div {
         attr.style "padding:40px;"
@@ -1111,6 +1167,57 @@ let rewardsPage model =
                         text ("Unlocked at: " + reward.unlockedAt.ToString("g"))
                     }
                 }
+    }
+
+let bossPage model dispatch =
+    let hpPercent =
+        (float model.boss.currentHp / float model.boss.maxHp) * 100.0
+
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:48px; color:#ef4444;"
+            text "Boss Battle"
+        }
+
+        div {
+            attr.style "background:#1e293b; border:2px solid #7f1d1d; border-radius:20px; padding:32px; max-width:800px;"
+
+            h2 {
+                attr.style "font-size:36px; color:#f87171;"
+                text model.boss.name
+            }
+
+            p {
+                attr.style "font-size:20px;"
+                text ("Level " + string model.boss.level)
+            }
+
+            p {
+                attr.style "font-size:20px; font-weight:700;"
+                text ("HP: " + string model.boss.currentHp + " / " + string model.boss.maxHp)
+            }
+
+            div {
+                attr.style "height:24px; background:#334155; border-radius:999px; overflow:hidden; margin-top:20px;"
+
+                div {
+                    attr.style ("height:100%; width:" + string hpPercent + "%; background:linear-gradient(90deg,#dc2626,#f87171);")
+                }
+            }
+
+            button {
+                attr.style "margin-top:30px; padding:14px 26px; border:none; border-radius:12px; background:linear-gradient(90deg,#dc2626,#f97316); color:white; font-size:18px; font-weight:800; cursor:pointer;"
+                on.click (fun _ -> dispatch AttackBoss)
+                text "Attack Boss ⚔️"
+            }
+
+            p {
+                attr.style "margin-top:20px; color:#94a3b8;"
+                text "Each attack deals random damage. Defeating a boss grants bonus XP and summons a stronger boss."
+            }
+        }
     }
 
 let settingsPage model dispatch =
@@ -1194,6 +1301,12 @@ let view model dispatch =
             }
 
             button {
+                attr.style (buttonStyle (model.page = Boss))
+                on.click (fun _ -> dispatch (SetPage Boss))
+                text "Boss"
+            }
+
+            button {
                 attr.style (buttonStyle (model.page = Settings))
                 on.click (fun _ -> dispatch (SetPage Settings))
                 text "Settings"
@@ -1207,6 +1320,7 @@ let view model dispatch =
         | Shop -> shopPage model dispatch
         | Inventory -> inventoryPage model dispatch
         | Rewards -> rewardsPage model
+        | Boss -> bossPage model dispatch
         | Settings -> settingsPage model dispatch
     }
 

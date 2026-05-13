@@ -13,6 +13,7 @@ type Page =
     | [<EndPoint "/inventory">] Inventory
     | [<EndPoint "/rewards">] Rewards
     | [<EndPoint "/boss">] Boss
+    | [<EndPoint "/skills">] Skills
     | [<EndPoint "/settings">] Settings
 
 type Difficulty =
@@ -25,6 +26,12 @@ type Rarity =
     | Rare
     | Epic
     | Legendary
+
+type SkillCategory =
+    | FocusPower
+    | QuestMastery
+    | LootLuck
+    | BossDamage
 
 type Quest =
     {
@@ -55,6 +62,16 @@ type ShopItem =
         cost: int
         rarity: Rarity
         purchased: bool
+    }
+
+type Skill =
+    {
+        name: string
+        description: string
+        category: SkillCategory
+        level: int
+        maxLevel: int
+        baseCost: int
     }
 
 type QuestHistory =
@@ -107,6 +124,7 @@ type Model =
         lootMessage: string option
         rewardHistory: RewardHistory list
         boss: BossEnemy
+        skills: Skill list
     }
 
 let initModel =
@@ -189,6 +207,41 @@ let initModel =
                 currentHp = 500
                 level = 1
             }
+        skills =
+            [
+                {
+                    name = "Focus Power"
+                    description = "Increase XP earned from completed focus sessions."
+                    category = FocusPower
+                    level = 0
+                    maxLevel = 5
+                    baseCost = 80
+                }
+                {
+                    name = "Quest Mastery"
+                    description = "Increase XP earned from completed quests."
+                    category = QuestMastery
+                    level = 0
+                    maxLevel = 5
+                    baseCost = 90
+                }
+                {
+                    name = "Loot Luck"
+                    description = "Improve your chance of earning higher-rarity loot."
+                    category = LootLuck
+                    level = 0
+                    maxLevel = 5
+                    baseCost = 120
+                }
+                {
+                    name = "Boss Damage"
+                    description = "Increase damage dealt during boss battles."
+                    category = BossDamage
+                    level = 0
+                    maxLevel = 5
+                    baseCost = 100
+                }
+            ]
     }
 
 type Message =
@@ -206,6 +259,7 @@ type Message =
     | EquipItem of string
     | ClearLootMessage
     | AttackBoss
+    | UpgradeSkill of string
     | ResetProgress
 
 let timerCmd =
@@ -265,16 +319,43 @@ let rarityText rarity =
     | Epic -> "Epic"
     | Legendary -> "Legendary"
 
+let skillCategoryText category =
+    match category with
+    | FocusPower -> "Focus Power"
+    | QuestMastery -> "Quest Mastery"
+    | LootLuck -> "Loot Luck"
+    | BossDamage -> "Boss Damage"
+
+let skillCost skill =
+    skill.baseCost + (skill.level * 60)
+
+let skillBonusText skill =
+    match skill.category with
+    | FocusPower -> "+" + string (skill.level * 10) + "% focus XP"
+    | QuestMastery -> "+" + string (skill.level * 10) + "% quest XP"
+    | LootLuck -> "+" + string (skill.level * 5) + "% loot luck"
+    | BossDamage -> "+" + string (skill.level * 10) + " boss damage"
+
+let skillLevel (category: SkillCategory) (skills: Skill list) =
+    skills
+    |> List.tryFind (fun skill -> skill.category = category)
+    |> Option.map (fun skill -> skill.level)
+    |> Option.defaultValue 0
+
 let random = Random()
 
-let generateLoot (shopItems: ShopItem list) =
+let generateLoot (skills: Skill list) (shopItems: ShopItem list) =
     let availableItems =
         shopItems |> List.filter (fun item -> not item.purchased)
 
     if List.isEmpty availableItems then
         None
     else
-        let roll = random.Next(100)
+        let lootLuckLevel =
+            skillLevel LootLuck skills
+
+        let roll =
+            random.Next(100) + (lootLuckLevel * 5)
 
         let desiredRarity =
             if roll < 50 then Common
@@ -315,10 +396,16 @@ let update message model =
         let selectedQuest =
             model.quests |> List.tryFind (fun quest -> quest.title = title)
 
-        let gainedXp =
+        let baseXp =
             match selectedQuest with
             | Some quest when not quest.completed -> xpForDifficulty quest.difficulty
             | _ -> 0
+
+        let questMasteryLevel =
+            skillLevel QuestMastery model.skills
+
+        let gainedXp =
+            int (float baseXp * (1.0 + float questMasteryLevel * 0.1))
 
         let updatedQuests =
             model.quests
@@ -422,8 +509,11 @@ let update message model =
     | CompleteFocusSession ->
         let baseXp = 50
 
+        let focusPowerLevel =
+            skillLevel FocusPower model.skills
+
         let gainedXp =
-            int (float baseXp * model.xpMultiplier)
+            int (float baseXp * model.xpMultiplier * (1.0 + float focusPowerLevel * 0.1))
 
         let newXp =
             model.player.xp + gainedXp
@@ -444,7 +534,7 @@ let update message model =
             } :: model.questHistory
 
         let lootReward =
-            generateLoot model.shopItems
+            generateLoot model.skills model.shopItems
 
         let finalShopItems =
             match lootReward with
@@ -531,8 +621,11 @@ let update message model =
         { model with lootMessage = None }, Cmd.none
 
     | AttackBoss ->
+        let bossDamageLevel =
+            skillLevel BossDamage model.skills
+
         let damage =
-            random.Next(20, 80)
+            random.Next(20, 80) + (bossDamageLevel * 10)
 
         let newHp =
             max 0 (model.boss.currentHp - damage)
@@ -586,6 +679,37 @@ let update message model =
                     lootMessage = Some ("Boss hit for " + string damage + " damage!")
             },
             Cmd.none
+
+    | UpgradeSkill skillName ->
+        let selectedSkill =
+            model.skills |> List.tryFind (fun skill -> skill.name = skillName)
+
+        match selectedSkill with
+        | Some skill when skill.level < skill.maxLevel && model.player.xp >= skillCost skill ->
+            let cost =
+                skillCost skill
+
+            let updatedSkills =
+                model.skills
+                |> List.map (fun currentSkill ->
+                    if currentSkill.name = skillName then
+                        { currentSkill with level = currentSkill.level + 1 }
+                    else
+                        currentSkill)
+
+            let updatedPlayer =
+                { model.player with xp = model.player.xp - cost }
+
+            {
+                model with
+                    player = updatedPlayer
+                    skills = updatedSkills
+                    lootMessage = Some ("Skill upgraded: " + skill.name)
+            },
+            Cmd.none
+
+        | _ ->
+            model, Cmd.none
 
     | ResetProgress ->
         initModel, Cmd.none
@@ -772,7 +896,7 @@ let focusPage model dispatch =
         sprintf "%02d:%02d" minutesLeft remainingSeconds
 
     let focusReward =
-        int (float 50 * model.xpMultiplier)
+        int (float 50 * model.xpMultiplier * (1.0 + float (skillLevel FocusPower model.skills) * 0.1))
 
     div {
         attr.style "padding:40px;"
@@ -856,6 +980,9 @@ let statsPage model =
     let purchasedCount =
         model.shopItems |> List.filter (fun item -> item.purchased) |> List.length
 
+    let totalSkillLevels =
+        model.skills |> List.sumBy (fun skill -> skill.level)
+
     div {
         attr.style "padding:40px;"
 
@@ -872,7 +999,7 @@ let statsPage model =
             statBox "Focus minutes" (string model.focusMinutes)
             statBox "Current level" (string model.player.level)
             statBox "XP Multiplier" (string model.xpMultiplier + "x")
-            statBox "Rewards" (string purchasedCount + " / " + string model.shopItems.Length)
+            statBox "Skill Levels" (string totalSkillLevels)
         }
 
         div {
@@ -888,6 +1015,7 @@ let statsPage model =
             p { text ("Quest completion: " + string progress + "%") }
             p { text ("Current streak: " + string model.streak + " days") }
             p { text ("Current multiplier: " + string model.xpMultiplier + "x") }
+            p { text ("Purchased rewards: " + string purchasedCount + " / " + string model.shopItems.Length) }
         }
 
         div {
@@ -1220,6 +1348,99 @@ let bossPage model dispatch =
         }
     }
 
+let skillsPage model dispatch =
+    let totalSkillLevels =
+        model.skills |> List.sumBy (fun skill -> skill.level)
+
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Skill Tree"
+        }
+
+        p {
+            attr.style "font-size:18px; color:#cbd5e1;"
+            text "Spend XP to unlock permanent upgrades for focus sessions, quests, loot, and boss battles."
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+
+            statBox "Available XP" (string model.player.xp)
+            statBox "Total Skill Levels" (string totalSkillLevels)
+            statBox "Focus Bonus" (string (skillLevel FocusPower model.skills * 10) + "%")
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px;"
+
+            for skill in model.skills do
+                let cost =
+                    skillCost skill
+
+                let isMaxed =
+                    skill.level >= skill.maxLevel
+
+                div {
+                    attr.style "background:#0f172a; border:1px solid #334155; border-radius:18px; padding:24px;"
+
+                    h2 {
+                        attr.style "color:#38bdf8; margin-top:0;"
+                        text skill.name
+                    }
+
+                    p {
+                        attr.style "color:#cbd5e1;"
+                        text skill.description
+                    }
+
+                    p {
+                        attr.style "color:#facc15; font-weight:800;"
+                        text ("Category: " + skillCategoryText skill.category)
+                    }
+
+                    p {
+                        attr.style "color:#22c55e; font-weight:800;"
+                        text ("Current bonus: " + skillBonusText skill)
+                    }
+
+                    p {
+                        text ("Level: " + string skill.level + " / " + string skill.maxLevel)
+                    }
+
+                    div {
+                        attr.style "height:14px; background:#334155; border-radius:999px; overflow:hidden; margin:12px 0;"
+
+                        div {
+                            let percent =
+                                (float skill.level / float skill.maxLevel) * 100.0
+
+                            attr.style ("height:100%; width:" + string percent + "%; background:linear-gradient(90deg,#7c3aed,#38bdf8);")
+                        }
+                    }
+
+                    if isMaxed then
+                        p {
+                            attr.style "color:#22c55e; font-weight:800;"
+                            text "Max level reached"
+                        }
+                    elif model.player.xp >= cost then
+                        button {
+                            attr.style "margin-top:12px; padding:10px 18px; border-radius:10px; border:none; background:linear-gradient(90deg,#22c55e,#38bdf8); color:#082f49; cursor:pointer; font-weight:800;"
+                            on.click (fun _ -> dispatch (UpgradeSkill skill.name))
+                            text ("Upgrade for " + string cost + " XP")
+                        }
+                    else
+                        p {
+                            attr.style "color:#94a3b8; font-weight:700;"
+                            text ("Need " + string cost + " XP to upgrade")
+                        }
+                }
+        }
+    }
+
 let settingsPage model dispatch =
     div {
         attr.style "padding:40px;"
@@ -1307,6 +1528,12 @@ let view model dispatch =
             }
 
             button {
+                attr.style (buttonStyle (model.page = Skills))
+                on.click (fun _ -> dispatch (SetPage Skills))
+                text "Skills"
+            }
+
+            button {
                 attr.style (buttonStyle (model.page = Settings))
                 on.click (fun _ -> dispatch (SetPage Settings))
                 text "Settings"
@@ -1321,6 +1548,7 @@ let view model dispatch =
         | Inventory -> inventoryPage model dispatch
         | Rewards -> rewardsPage model
         | Boss -> bossPage model dispatch
+        | Skills -> skillsPage model dispatch
         | Settings -> settingsPage model dispatch
     }
 

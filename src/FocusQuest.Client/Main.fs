@@ -14,6 +14,7 @@ type Page =
     | [<EndPoint "/rewards">] Rewards
     | [<EndPoint "/boss">] Boss
     | [<EndPoint "/skills">] Skills
+    | [<EndPoint "/profile">] Profile
     | [<EndPoint "/settings">] Settings
 
 type Difficulty =
@@ -74,6 +75,14 @@ type Skill =
         baseCost: int
     }
 
+type PlayerTitle =
+    {
+        name: string
+        description: string
+        requirement: string
+        unlocked: bool
+    }
+
 type QuestHistory =
     {
         title: string
@@ -125,6 +134,8 @@ type Model =
         rewardHistory: RewardHistory list
         boss: BossEnemy
         skills: Skill list
+        playerTitles: PlayerTitle list
+        equippedTitle: string option
     }
 
 let initModel =
@@ -242,6 +253,46 @@ let initModel =
                     baseCost = 100
                 }
             ]
+        playerTitles =
+            [
+                {
+                    name = "Novice Adventurer"
+                    description = "A starting title for new FocusQuest players."
+                    requirement = "Available from the beginning."
+                    unlocked = true
+                }
+                {
+                    name = "Focused Apprentice"
+                    description = "Awarded for completing your first quest."
+                    requirement = "Complete at least 1 quest."
+                    unlocked = false
+                }
+                {
+                    name = "Level Climber"
+                    description = "Awarded for reaching level 2."
+                    requirement = "Reach level 2."
+                    unlocked = false
+                }
+                {
+                    name = "Treasure Hunter"
+                    description = "Awarded for unlocking at least 3 rewards."
+                    requirement = "Unlock 3 inventory rewards."
+                    unlocked = false
+                }
+                {
+                    name = "Dragon Challenger"
+                    description = "Awarded for progressing beyond the first boss."
+                    requirement = "Defeat the first boss."
+                    unlocked = false
+                }
+                {
+                    name = "Skill Strategist"
+                    description = "Awarded for investing in the skill tree."
+                    requirement = "Reach 3 total skill levels."
+                    unlocked = false
+                }
+            ]
+        equippedTitle = Some "Novice Adventurer"
     }
 
 type Message =
@@ -260,6 +311,7 @@ type Message =
     | ClearLootMessage
     | AttackBoss
     | UpgradeSkill of string
+    | EquipTitle of string
     | ResetProgress
 
 let timerCmd =
@@ -341,6 +393,36 @@ let skillLevel (category: SkillCategory) (skills: Skill list) =
     |> List.tryFind (fun skill -> skill.category = category)
     |> Option.map (fun skill -> skill.level)
     |> Option.defaultValue 0
+
+let updatePlayerTitles (model: Model) =
+    let completedQuestCount =
+        model.quests |> List.filter (fun quest -> quest.completed) |> List.length
+
+    let purchasedRewardCount =
+        model.shopItems |> List.filter (fun item -> item.purchased) |> List.length
+
+    let totalSkillLevels =
+        model.skills |> List.sumBy (fun skill -> skill.level)
+
+    model.playerTitles
+    |> List.map (fun title ->
+        if title.name = "Novice Adventurer" then
+            { title with unlocked = true }
+        elif title.name = "Focused Apprentice" && completedQuestCount >= 1 then
+            { title with unlocked = true }
+        elif title.name = "Level Climber" && model.player.level >= 2 then
+            { title with unlocked = true }
+        elif title.name = "Treasure Hunter" && purchasedRewardCount >= 3 then
+            { title with unlocked = true }
+        elif title.name = "Dragon Challenger" && model.boss.level >= 2 then
+            { title with unlocked = true }
+        elif title.name = "Skill Strategist" && totalSkillLevels >= 3 then
+            { title with unlocked = true }
+        else
+            title)
+
+let refreshTitles model =
+    { model with playerTitles = updatePlayerTitles model }
 
 let random = Random()
 
@@ -450,7 +532,8 @@ let update message model =
             achievements = updatedAchievements
             streak = newStreak
             xpMultiplier = newMultiplier
-            questHistory = updatedQuestHistory },
+            questHistory = updatedQuestHistory }
+        |> refreshTitles,
         Cmd.none
 
     | CompleteDailyChallenge ->
@@ -477,7 +560,8 @@ let update message model =
             { model with
                 player = updatedPlayer
                 achievements = updatedAchievements
-                dailyChallengeCompleted = true },
+                dailyChallengeCompleted = true }
+            |> refreshTitles,
             Cmd.none
 
     | StartFocusTimer ->
@@ -572,7 +656,8 @@ let update message model =
             focusSessionCompleted = true
             shopItems = finalShopItems
             rewardHistory = updatedRewardHistory
-            lootMessage = lootMessage },
+            lootMessage = lootMessage }
+        |> refreshTitles,
         Cmd.none
 
     | ResetFocusTimer ->
@@ -601,7 +686,8 @@ let update message model =
 
             { model with
                 player = updatedPlayer
-                shopItems = updatedItems },
+                shopItems = updatedItems }
+            |> refreshTitles,
             Cmd.none
 
         | _ ->
@@ -614,6 +700,16 @@ let update message model =
 
         if ownsItem then
             { model with equippedItem = Some itemName }, Cmd.none
+        else
+            model, Cmd.none
+
+    | EquipTitle titleName ->
+        let ownsTitle =
+            model.playerTitles
+            |> List.exists (fun title -> title.name = titleName && title.unlocked)
+
+        if ownsTitle then
+            { model with equippedTitle = Some titleName }, Cmd.none
         else
             model, Cmd.none
 
@@ -666,7 +762,8 @@ let update message model =
                     player = updatedPlayer
                     boss = newBoss
                     lootMessage = Some ("Boss defeated! +" + string rewardXp + " XP earned ⚔️")
-            },
+            }
+            |> refreshTitles,
             Cmd.none
         else
             {
@@ -705,7 +802,8 @@ let update message model =
                     player = updatedPlayer
                     skills = updatedSkills
                     lootMessage = Some ("Skill upgraded: " + skill.name)
-            },
+            }
+            |> refreshTitles,
             Cmd.none
 
         | _ ->
@@ -772,14 +870,21 @@ let homePage model dispatch =
             attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Player" model.player.name
+            statBox "Title" (match model.equippedTitle with | Some title -> title | None -> "None")
             statBox "Level" (string model.player.level)
             statBox "XP" (string model.player.xp + " / " + string requiredXp)
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox
                 "Equipped Reward"
                 (match model.equippedItem with
                  | Some item -> item
                  | None -> "None")
+
+            statBox "Streak Multiplier" (string model.xpMultiplier + "x")
         }
 
         div {
@@ -983,6 +1088,9 @@ let statsPage model =
     let totalSkillLevels =
         model.skills |> List.sumBy (fun skill -> skill.level)
 
+    let unlockedTitleCount =
+        model.playerTitles |> List.filter (fun title -> title.unlocked) |> List.length
+
     div {
         attr.style "padding:40px;"
 
@@ -998,8 +1106,8 @@ let statsPage model =
             statBox "Progress" (string progress + "%")
             statBox "Focus minutes" (string model.focusMinutes)
             statBox "Current level" (string model.player.level)
-            statBox "XP Multiplier" (string model.xpMultiplier + "x")
             statBox "Skill Levels" (string totalSkillLevels)
+            statBox "Titles" (string unlockedTitleCount + " / " + string model.playerTitles.Length)
         }
 
         div {
@@ -1011,6 +1119,7 @@ let statsPage model =
             }
 
             p { text ("Player: " + model.player.name) }
+            p { text ("Equipped title: " + (match model.equippedTitle with | Some title -> title | None -> "None")) }
             p { text ("Total XP: " + string model.player.xp) }
             p { text ("Quest completion: " + string progress + "%") }
             p { text ("Current streak: " + string model.streak + " days") }
@@ -1441,6 +1550,96 @@ let skillsPage model dispatch =
         }
     }
 
+let profilePage model dispatch =
+    let unlockedTitles =
+        model.playerTitles |> List.filter (fun title -> title.unlocked) |> List.length
+
+    div {
+        attr.style "padding:40px;"
+
+        h1 {
+            attr.style "font-size:42px; color:#38bdf8;"
+            text "Player Profile"
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+
+            statBox "Player" model.player.name
+            statBox "Level" (string model.player.level)
+            statBox "XP" (string model.player.xp)
+            statBox "Titles" (string unlockedTitles + " / " + string model.playerTitles.Length)
+        }
+
+        div {
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:18px; padding:24px; margin-bottom:24px;"
+
+            h2 {
+                attr.style "color:#facc15; margin-top:0;"
+                text "Active Identity"
+            }
+
+            p {
+                attr.style "font-size:20px; font-weight:800; color:#e5e7eb;"
+                text ("Equipped title: " + (match model.equippedTitle with | Some title -> title | None -> "None"))
+            }
+
+            p {
+                text ("Equipped reward: " + (match model.equippedItem with | Some item -> item | None -> "None"))
+            }
+        }
+
+        h2 {
+            attr.style "color:#facc15;"
+            text "Player Titles"
+        }
+
+        div {
+            attr.style "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px;"
+
+            for title in model.playerTitles do
+                div {
+                    attr.style (
+                        if title.unlocked then
+                            "background:#0f172a; border:1px solid #22c55e; border-radius:16px; padding:22px;"
+                        else
+                            "background:#0f172a; border:1px solid #334155; border-radius:16px; padding:22px; opacity:0.75;"
+                    )
+
+                    h3 {
+                        attr.style "color:#38bdf8; margin-top:0;"
+                        text title.name
+                    }
+
+                    p {
+                        text title.description
+                    }
+
+                    p {
+                        attr.style "color:#94a3b8;"
+                        text ("Requirement: " + title.requirement)
+                    }
+
+                    if model.equippedTitle = Some title.name then
+                        p {
+                            attr.style "color:#facc15; font-weight:800;"
+                            text "Equipped"
+                        }
+                    elif title.unlocked then
+                        button {
+                            attr.style "margin-top:12px; padding:10px 18px; border-radius:10px; border:none; background:#38bdf8; color:#082f49; cursor:pointer; font-weight:800;"
+                            on.click (fun _ -> dispatch (EquipTitle title.name))
+                            text "Equip Title"
+                        }
+                    else
+                        p {
+                            attr.style "color:#64748b; font-weight:700;"
+                            text "Locked"
+                        }
+                }
+        }
+    }
+
 let settingsPage model dispatch =
     div {
         attr.style "padding:40px;"
@@ -1534,6 +1733,12 @@ let view model dispatch =
             }
 
             button {
+                attr.style (buttonStyle (model.page = Profile))
+                on.click (fun _ -> dispatch (SetPage Profile))
+                text "Profile"
+            }
+
+            button {
                 attr.style (buttonStyle (model.page = Settings))
                 on.click (fun _ -> dispatch (SetPage Settings))
                 text "Settings"
@@ -1549,6 +1754,7 @@ let view model dispatch =
         | Rewards -> rewardsPage model
         | Boss -> bossPage model dispatch
         | Skills -> skillsPage model dispatch
+        | Profile -> profilePage model dispatch
         | Settings -> settingsPage model dispatch
     }
 

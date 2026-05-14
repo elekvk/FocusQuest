@@ -313,6 +313,7 @@ type Message =
     | UpgradeSkill of string
     | EquipTitle of string
     | ResetProgress
+    | RefreshDailyQuests
 
 let timerCmd =
     Cmd.OfAsync.perform
@@ -809,6 +810,21 @@ let update message model =
         | _ ->
             model, Cmd.none
 
+    | RefreshDailyQuests ->
+        let refreshedQuests =
+            [
+                { title = "Read for 20 minutes"; duration = 20; difficulty = Easy; completed = false }
+                { title = "Deep work session"; duration = 45; difficulty = Medium; completed = false }
+                { title = "Complete a hard project task"; duration = 60; difficulty = Hard; completed = false }
+            ]
+
+        { model with
+            quests = refreshedQuests
+            dailyChallengeCompleted = false
+            focusSessionCompleted = false
+            lootMessage = Some "Daily quests refreshed!" },
+        Cmd.none
+
     | ResetProgress ->
         initModel, Cmd.none
 
@@ -959,6 +975,12 @@ let homePage model dispatch =
             text "Today’s Quests"
         }
 
+        button {
+            attr.style "margin-bottom:20px; padding:10px 18px; border-radius:10px; border:none; background:#475569; color:white; cursor:pointer; font-weight:700;"
+            on.click (fun _ -> dispatch RefreshDailyQuests)
+            text "Refresh Daily Quests"
+        }
+        
         for quest in model.quests do
             div {
                 attr.style "background:#0f172a; border:1px solid #334155; border-radius:16px; padding:22px; margin-top:18px; box-shadow:0 8px 20px rgba(0,0,0,0.35);"

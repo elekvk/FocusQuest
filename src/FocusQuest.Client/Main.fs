@@ -22,6 +22,11 @@ type Difficulty =
     | Medium
     | Hard
 
+type PlayerClass =
+    | Warrior
+    | Mage
+    | Rogue
+
 type Rarity =
     | Common
     | Rare
@@ -47,6 +52,8 @@ type Player =
         name: string
         xp: int
         level: int
+        playerClass: PlayerClass
+        loggedIn: bool
     }
 
 type Achievement =
@@ -118,6 +125,9 @@ type Model =
         page: Page
         focusMinutes: int
         player: Player
+        playerNameInput: string
+        selectedClass: PlayerClass
+        loginError: string option
         quests: Quest list
         achievements: Achievement list
         streak: int
@@ -142,7 +152,17 @@ let initModel =
     {
         page = Home
         focusMinutes = 25
-        player = { name = "Player1"; xp = 0; level = 1 }
+        player =
+            {
+                name = ""
+                xp = 0
+                level = 1
+                playerClass = Warrior
+                loggedIn = false
+            }
+        playerNameInput = ""
+        selectedClass = Warrior
+        loginError = None
         quests =
             [
                 { title = "Study for 30 minutes"; duration = 30; difficulty = Easy; completed = false }
@@ -297,6 +317,10 @@ let initModel =
 
 type Message =
     | SetPage of Page
+    | SetPlayerName of string
+    | SelectClass of PlayerClass
+    | Login
+    | Logout
     | IncreaseFocusTime
     | DecreaseFocusTime
     | CompleteQuest of string
@@ -329,6 +353,24 @@ let xpForDifficulty difficulty =
     | Easy -> 25
     | Medium -> 50
     | Hard -> 80
+
+let playerClassText playerClass =
+    match playerClass with
+    | Warrior -> "Warrior"
+    | Mage -> "Mage"
+    | Rogue -> "Rogue"
+
+let playerClassIcon playerClass =
+    match playerClass with
+    | Warrior -> "⚔️"
+    | Mage -> "🧙"
+    | Rogue -> "🗡️"
+
+let playerClassDescription playerClass =
+    match playerClass with
+    | Warrior -> "Strong and consistent. Great for boss battles and long-term discipline."
+    | Mage -> "Strategic and focused. Great for skill-based progression."
+    | Rogue -> "Fast and flexible. Great for loot hunting and quick focus sessions."
 
 let updateAchievements (player: Player) (quests: Quest list) (achievements: Achievement list) =
     let completedCount =
@@ -457,6 +499,49 @@ let generateLoot (skills: Skill list) (shopItems: ShopItem list) =
 
 let update message model =
     match message with
+    | SetPlayerName name ->
+        { model with
+            playerNameInput = name
+            loginError = None },
+        Cmd.none
+
+    | SelectClass playerClass ->
+        { model with selectedClass = playerClass }, Cmd.none
+
+    | Login ->
+        if String.IsNullOrWhiteSpace model.playerNameInput then
+            { model with loginError = Some "Please enter a player name before starting." },
+            Cmd.none
+        else
+            let playerName =
+                model.playerNameInput.Trim()
+
+            let updatedPlayer =
+                {
+                    model.player with
+                        name = playerName
+                        playerClass = model.selectedClass
+                        loggedIn = true
+                }
+
+            { model with
+                player = updatedPlayer
+                loginError = None
+                lootMessage = Some ("Welcome to FocusQuest, " + playerName + "!") },
+            Cmd.none
+
+    | Logout ->
+        { model with
+            player =
+                {
+                    model.player with
+                        loggedIn = false
+                }
+            playerNameInput = model.player.name
+            selectedClass = model.player.playerClass
+            page = Home },
+        Cmd.none
+
     | SetPage page ->
         { model with page = page }, Cmd.none
 
@@ -858,6 +943,84 @@ let rarityLabel (item: ShopItem) =
         text (rarityText item.rarity)
     }
 
+
+let classButton selected current dispatch =
+    button {
+        attr.style (
+            if selected = current then
+                "flex:1; padding:16px; border-radius:14px; border:2px solid #38bdf8; background:#0f172a; color:white; cursor:pointer; font-weight:800;"
+            else
+                "flex:1; padding:16px; border-radius:14px; border:1px solid #334155; background:#020617; color:#cbd5e1; cursor:pointer; font-weight:700;"
+        )
+
+        on.click (fun _ -> dispatch (SelectClass current))
+        text (playerClassIcon current + " " + playerClassText current)
+    }
+
+let loginPage model dispatch =
+    div {
+        attr.style "min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif; padding:30px;"
+
+        div {
+            attr.style "width:560px; background:#1e293b; border:1px solid #334155; border-radius:28px; padding:42px; box-shadow:0 20px 60px rgba(0,0,0,0.45);"
+
+            h1 {
+                attr.style "font-size:44px; color:#38bdf8; margin-top:0; margin-bottom:8px;"
+                text "Enter FocusQuest"
+            }
+
+            p {
+                attr.style "color:#cbd5e1; font-size:18px;"
+                text "Create your focus hero and begin your RPG productivity journey."
+            }
+
+            input {
+                attr.placeholder "Enter player name..."
+                attr.value model.playerNameInput
+                on.input (fun e ->
+                    dispatch (SetPlayerName (string e.Value)))
+                attr.style "width:100%; box-sizing:border-box; padding:16px; border-radius:12px; border:1px solid #334155; margin-top:22px; background:#020617; color:white; font-size:16px;"
+            }
+
+            h3 {
+                attr.style "margin-top:28px; color:#facc15;"
+                text "Choose Your Class"
+            }
+
+            div {
+                attr.style "display:flex; gap:12px; margin-top:14px;"
+
+                classButton model.selectedClass Warrior dispatch
+                classButton model.selectedClass Mage dispatch
+                classButton model.selectedClass Rogue dispatch
+            }
+
+            div {
+                attr.style "margin-top:18px; padding:16px; background:#0f172a; border-radius:14px; border:1px solid #334155;"
+
+                p {
+                    attr.style "margin:0; color:#cbd5e1;"
+                    text (playerClassDescription model.selectedClass)
+                }
+            }
+
+            match model.loginError with
+            | Some error ->
+                p {
+                    attr.style "margin-top:18px; color:#f87171; font-weight:700;"
+                    text error
+                }
+            | None ->
+                empty()
+
+            button {
+                attr.style "margin-top:30px; width:100%; padding:16px; border:none; border-radius:14px; background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; font-size:18px; font-weight:900; cursor:pointer;"
+                on.click (fun _ -> dispatch Login)
+                text "Start Adventure"
+            }
+        }
+    }
+
 let homePage model dispatch =
     let requiredXp =
         model.player.level * 100
@@ -886,9 +1049,9 @@ let homePage model dispatch =
             attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Player" model.player.name
+            statBox "Class" (playerClassIcon model.player.playerClass + " " + playerClassText model.player.playerClass)
             statBox "Title" (match model.equippedTitle with | Some title -> title | None -> "None")
             statBox "Level" (string model.player.level)
-            statBox "XP" (string model.player.xp + " / " + string requiredXp)
         }
 
         div {
@@ -1141,6 +1304,7 @@ let statsPage model =
             }
 
             p { text ("Player: " + model.player.name) }
+            p { text ("Class: " + playerClassText model.player.playerClass) }
             p { text ("Equipped title: " + (match model.equippedTitle with | Some title -> title | None -> "None")) }
             p { text ("Total XP: " + string model.player.xp) }
             p { text ("Quest completion: " + string progress + "%") }
@@ -1588,8 +1752,8 @@ let profilePage model dispatch =
             attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Player" model.player.name
+            statBox "Class" (playerClassText model.player.playerClass)
             statBox "Level" (string model.player.level)
-            statBox "XP" (string model.player.xp)
             statBox "Titles" (string unlockedTitles + " / " + string model.playerTitles.Length)
         }
 
@@ -1684,11 +1848,21 @@ let settingsPage model dispatch =
             }
 
             p {
+                text ("Current class: " + playerClassText model.player.playerClass)
+            }
+
+            p {
                 text ("Current level: " + string model.player.level)
             }
 
             p {
                 text ("Current streak: " + string model.streak + " days 🔥")
+            }
+
+            button {
+                attr.style "margin-top:16px; margin-right:12px; padding:10px 18px; border-radius:10px; border:none; background:#475569; color:white; font-weight:700; cursor:pointer;"
+                on.click (fun _ -> dispatch Logout)
+                text "Log Out"
             }
 
             button {
@@ -1699,7 +1873,7 @@ let settingsPage model dispatch =
         }
     }
 
-let view model dispatch =
+let appShell model dispatch =
     div {
         attr.style "min-height:100vh; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif;"
 
@@ -1779,6 +1953,12 @@ let view model dispatch =
         | Profile -> profilePage model dispatch
         | Settings -> settingsPage model dispatch
     }
+
+let view model dispatch =
+    if not model.player.loggedIn then
+        loginPage model dispatch
+    else
+        appShell model dispatch
 
 type MyApp() =
     inherit ProgramComponent<Model, Message>()

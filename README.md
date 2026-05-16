@@ -217,22 +217,22 @@ Renders the UI dynamically based on the current state.
 
 ## Project Structure
 
-```text
-FocusQuest
-├── src
-│   ├── FocusQuest.Client
-│   │   ├── Main.fs
-│   │   ├── Startup.fs
-│   │   └── wwwroot
-│   └── FocusQuest.Server
-│       ├── Database.fs
-│       ├── ProgressService.fs
-│       └── Startup.fs
-├── FocusQuest.sln
+FocusQuest 
+├── src 
+│ ├── FocusQuest.Client 
+│ │ ├── Main.fs 
+│ │ ├── Startup.fs 
+│ │ └── wwwroot 
+│ └── FocusQuest.Server 
+│ ├── Database.fs 
+│ ├── ProgressService.fs 
+│ └── Startup.fs 
+├── screenshots 
+├── Dockerfile 
+├── FocusQuest.sln 
 └── README.md
-```
 
----
+```
 
 ## Getting Started (Local)
 

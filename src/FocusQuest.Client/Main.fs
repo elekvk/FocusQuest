@@ -918,21 +918,21 @@ let router =
 
 let buttonStyle active =
     if active then
-        "margin-right:10px; padding:10px 16px; border-radius:10px; border:none; background:#2563eb; color:white; cursor:pointer; font-weight:700;"
+        "padding:10px 16px; border-radius:10px; border:none; background:#2563eb; color:white; cursor:pointer; font-weight:700; min-width:110px; white-space:nowrap;"
     else
-        "margin-right:10px; padding:10px 16px; border-radius:10px; border:none; background:#1e293b; color:white; cursor:pointer; font-weight:700;"
+        "padding:10px 16px; border-radius:10px; border:none; background:#1e293b; color:white; cursor:pointer; font-weight:700; min-width:110px; white-space:nowrap;"
 
 let statBox title value =
     div {
-        attr.style "background:#1e293b; border:1px solid #334155; border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.35);"
+        attr.style "background:#1e293b; border:1px solid #334155; border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.35); min-width:0; overflow:hidden; box-sizing:border-box; width:100%; min-height:120px; display:flex; flex-direction:column; justify-content:flex-start;"
 
         h3 {
-            attr.style "color:#38bdf8; margin-top:0;"
+            attr.style "color:#38bdf8; margin-top:0; margin-bottom:12px; font-size:16px; line-height:1.3; word-break:normal; overflow-wrap:anywhere;"
             text title
         }
 
         p {
-            attr.style "font-size:26px; font-weight:800; margin-bottom:0;"
+            attr.style "font-size:clamp(22px, 5vw, 30px); font-weight:800; margin:0; line-height:1.25; word-break:normal; overflow-wrap:anywhere;"
             text value
         }
     }
@@ -962,7 +962,7 @@ let loginPage model dispatch =
         attr.style "min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif; padding:30px;"
 
         div {
-            attr.style "width:560px; background:#1e293b; border:1px solid #334155; border-radius:28px; padding:42px; box-shadow:0 20px 60px rgba(0,0,0,0.45);"
+            attr.style "width:100%; max-width:560px; background:#1e293b; border:1px solid #334155; border-radius:28px; padding:clamp(24px, 5vw, 42px); box-shadow:0 20px 60px rgba(0,0,0,0.45); box-sizing:border-box;"
 
             h1 {
                 attr.style "font-size:44px; color:#38bdf8; margin-top:0; margin-bottom:8px;"
@@ -988,7 +988,7 @@ let loginPage model dispatch =
             }
 
             div {
-                attr.style "display:flex; gap:12px; margin-top:14px;"
+                attr.style "display:flex; flex-wrap:wrap; gap:12px; margin-top:14px;"
 
                 classButton model.selectedClass Warrior dispatch
                 classButton model.selectedClass Mage dispatch
@@ -1033,10 +1033,10 @@ let homePage model dispatch =
         |> min 100.0
 
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:48px; font-weight:900; color:#38bdf8; margin-bottom:5px;"
+            attr.style "font-size:clamp(42px, 9vw, 48px); font-weight:900; color:#38bdf8; margin-bottom:5px;"
             text "FocusQuest"
         }
 
@@ -1046,7 +1046,7 @@ let homePage model dispatch =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Player" model.player.name
             statBox "Class" (playerClassIcon model.player.playerClass + " " + playerClassText model.player.playerClass)
@@ -1055,7 +1055,7 @@ let homePage model dispatch =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox
                 "Equipped Reward"
@@ -1189,13 +1189,13 @@ let focusPage model dispatch =
         int (float 50 * model.xpMultiplier * (1.0 + float (skillLevel FocusPower model.skills) * 0.1))
 
     div {
-        attr.style "padding:40px; display:flex; justify-content:center; align-items:center; min-height:calc(100vh - 90px);"
+        attr.style "padding:clamp(20px, 5vw, 40px); display:flex; justify-content:center; align-items:center; min-height:calc(100vh - 90px); box-sizing:border-box;"
 
         div {
-            attr.style "background:#1e293b; border:1px solid #334155; border-radius:28px; padding:48px; width:760px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.35);"
+            attr.style "background:#1e293b; border:1px solid #334155; border-radius:28px; padding:clamp(24px, 5vw, 48px); width:100%; max-width:760px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.35); box-sizing:border-box;"
 
             h1 {
-                attr.style "font-size:42px; color:#38bdf8; margin-top:0;"
+                attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8; margin-top:0;"
                 text "Focus Session"
             }
 
@@ -1210,17 +1210,17 @@ let focusPage model dispatch =
             }
 
             div {
-                attr.style "font-size:76px; font-weight:900; margin:34px 0 10px 0;"
+                attr.style "font-size:clamp(46px, 12vw, 76px); font-weight:900; margin:34px 0 10px 0;"
                 text (string model.focusMinutes + " min")
             }
 
             div {
-                attr.style "font-size:64px; font-weight:900; color:#22c55e; margin:30px 0;"
+                attr.style "font-size:clamp(42px, 11vw, 64px); font-weight:900; color:#22c55e; margin:30px 0;"
                 text timerText
             }
 
             div {
-                attr.style "display:grid; grid-template-columns:repeat(2, 220px); gap:18px; justify-content:center; margin-top:35px;"
+                attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:18px; justify-content:center; margin-top:35px; width:100%; max-width:480px; margin-left:auto; margin-right:auto;"
 
                 button {
                     attr.style "padding:18px; border-radius:16px; border:none; background:#334155; color:white; cursor:pointer; font-size:20px; font-weight:800;"
@@ -1247,7 +1247,7 @@ let focusPage model dispatch =
                 }
 
                 button {
-                    attr.style "padding:18px; border:none; border-radius:16px; background:#2563eb; color:white; font-size:20px; font-weight:900; cursor:pointer; grid-column:span 2;"
+                    attr.style "padding:18px; border:none; border-radius:16px; background:#2563eb; color:white; font-size:20px; font-weight:900; cursor:pointer;"
                     on.click (fun _ -> dispatch ResetFocusTimer)
                     text "Reset Timer"
                 }
@@ -1282,15 +1282,15 @@ let statsPage model =
         model.playerTitles |> List.filter (fun title -> title.unlocked) |> List.length
 
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:42px; color:#38bdf8;"
+            attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8;"
             text "Player Statistics"
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Completed quests" (string completed + " / " + string total)
             statBox "Progress" (string progress + "%")
@@ -1389,15 +1389,15 @@ let statsPage model =
 
 let shopPage model dispatch =
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:42px; color:#38bdf8;"
+            attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8;"
             text "Reward Shop"
         }
 
         p {
-            attr.style "font-size:18px; color:#cbd5e1;"
+            attr.style "font-size:18px; color:#cbd5e1; line-height:1.5;"
             text "Spend your earned XP on cosmetic rewards and focus achievements."
         }
 
@@ -1411,7 +1411,7 @@ let shopPage model dispatch =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px;"
 
             for item in model.shopItems do
                 div {
@@ -1463,15 +1463,15 @@ let inventoryPage model dispatch =
         model.shopItems |> List.filter (fun item -> item.purchased)
 
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:42px; color:#38bdf8;"
+            attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8;"
             text "Inventory"
         }
 
         p {
-            attr.style "font-size:18px; color:#cbd5e1;"
+            attr.style "font-size:18px; color:#cbd5e1; line-height:1.5;"
             text "Your unlocked rewards and focus trophies."
         }
 
@@ -1491,11 +1491,11 @@ let inventoryPage model dispatch =
             }
         else
             div {
-                attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; margin-top:24px;"
+                attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-top:24px;"
 
                 for item in purchasedItems do
                     div {
-                        attr.style "background:linear-gradient(135deg,#14532d,#166534); border:1px solid #22c55e; border-radius:16px; padding:22px;"
+                        attr.style "background:linear-gradient(135deg,#14532d,#166534); border:1px solid #22c55e; border-radius:16px; padding:22px; min-width:0; overflow:hidden; box-sizing:border-box;"
 
                         h3 {
                             attr.style "color:#38bdf8; margin-top:0;"
@@ -1536,20 +1536,20 @@ let rewardsPage model =
         model.rewardHistory |> List.filter (fun reward -> reward.rarity = Epic) |> List.length
 
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:42px; color:#38bdf8;"
+            attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8;"
             text "Reward History"
         }
 
         p {
-            attr.style "font-size:18px; color:#cbd5e1;"
+            attr.style "font-size:18px; color:#cbd5e1; line-height:1.5;"
             text "Track the random loot rewards unlocked from completed focus sessions."
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Unlocked Rewards" (string model.rewardHistory.Length)
             statBox "Legendary Rewards" (string legendaryCount)
@@ -1602,10 +1602,10 @@ let bossPage model dispatch =
         (float model.boss.currentHp / float model.boss.maxHp) * 100.0
 
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:48px; color:#ef4444;"
+            attr.style "font-size:clamp(42px, 9vw, 48px); color:#ef4444;"
             text "Boss Battle"
         }
 
@@ -1613,7 +1613,7 @@ let bossPage model dispatch =
             attr.style "background:#1e293b; border:2px solid #7f1d1d; border-radius:20px; padding:32px; max-width:800px;"
 
             h2 {
-                attr.style "font-size:36px; color:#f87171;"
+                attr.style "font-size:clamp(30px, 7vw, 36px); color:#f87171;"
                 text model.boss.name
             }
 
@@ -1653,20 +1653,20 @@ let skillsPage model dispatch =
         model.skills |> List.sumBy (fun skill -> skill.level)
 
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:42px; color:#38bdf8;"
+            attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8;"
             text "Skill Tree"
         }
 
         p {
-            attr.style "font-size:18px; color:#cbd5e1;"
+            attr.style "font-size:18px; color:#cbd5e1; line-height:1.5;"
             text "Spend XP to unlock permanent upgrades for focus sessions, quests, loot, and boss battles."
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Available XP" (string model.player.xp)
             statBox "Total Skill Levels" (string totalSkillLevels)
@@ -1674,7 +1674,7 @@ let skillsPage model dispatch =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px;"
 
             for skill in model.skills do
                 let cost =
@@ -1746,15 +1746,15 @@ let profilePage model dispatch =
         model.playerTitles |> List.filter (fun title -> title.unlocked) |> List.length
 
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:42px; color:#38bdf8;"
+            attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8;"
             text "Player Profile"
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:18px; margin-bottom:24px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-bottom:24px;"
 
             statBox "Player" model.player.name
             statBox "Class" (playerClassText model.player.playerClass)
@@ -1786,7 +1786,7 @@ let profilePage model dispatch =
         }
 
         div {
-            attr.style "display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px;"
+            attr.style "display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px;"
 
             for title in model.playerTitles do
                 div {
@@ -1833,10 +1833,10 @@ let profilePage model dispatch =
 
 let settingsPage model dispatch =
     div {
-        attr.style "padding:40px;"
+        attr.style "padding:clamp(20px, 5vw, 40px); max-width:1200px; margin:0 auto; box-sizing:border-box;"
 
         h1 {
-            attr.style "font-size:42px; color:#38bdf8;"
+            attr.style "font-size:clamp(36px, 8vw, 42px); color:#38bdf8;"
             text "Settings"
         }
 
@@ -1883,8 +1883,7 @@ let appShell model dispatch =
         attr.style "min-height:100vh; background:linear-gradient(135deg,#020617,#111827); color:#e5e7eb; font-family:Segoe UI,Arial,sans-serif;"
 
         div {
-            attr.style "background:#020617; padding:16px 40px; border-bottom:1px solid #334155;"
-
+            attr.style "background:#020617; padding:16px 24px; border-bottom:1px solid #334155; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; align-items:center;"
             button {
                 attr.style (buttonStyle (model.page = Home))
                 on.click (fun _ -> dispatch (SetPage Home))

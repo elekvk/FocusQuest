@@ -1220,34 +1220,34 @@ let focusPage model dispatch =
             }
 
             div {
-                attr.style "display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-top:30px;"
+                attr.style "display:grid; grid-template-columns:repeat(2, 220px); gap:18px; justify-content:center; margin-top:35px;"
 
                 button {
-                    attr.style "padding:16px 28px; border-radius:14px; border:none; background:#334155; color:white; cursor:pointer; font-size:18px; font-weight:800;"
+                    attr.style "padding:18px; border-radius:16px; border:none; background:#334155; color:white; cursor:pointer; font-size:20px; font-weight:800;"
                     on.click (fun _ -> dispatch DecreaseFocusTime)
                     text "-5 min"
                 }
 
                 button {
-                    attr.style "padding:16px 28px; border-radius:14px; border:none; background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; cursor:pointer; font-size:18px; font-weight:800;"
+                    attr.style "padding:18px; border-radius:16px; border:none; background:linear-gradient(90deg,#7c3aed,#06b6d4); color:white; cursor:pointer; font-size:20px; font-weight:800;"
                     on.click (fun _ -> dispatch IncreaseFocusTime)
                     text "+5 min"
                 }
 
                 button {
-                    attr.style "padding:16px 34px; border-radius:14px; border:none; background:#22c55e; color:#052e16; cursor:pointer; font-size:18px; font-weight:900;"
+                    attr.style "padding:18px; border-radius:16px; border:none; background:#22c55e; color:#052e16; cursor:pointer; font-size:20px; font-weight:900;"
                     on.click (fun _ -> dispatch StartFocusTimer)
                     text "Start Timer"
                 }
 
                 button {
-                    attr.style "padding:16px 34px; border-radius:14px; border:none; background:#475569; color:white; cursor:pointer; font-size:18px; font-weight:900;"
+                    attr.style "padding:18px; border-radius:16px; border:none; background:#475569; color:white; cursor:pointer; font-size:20px; font-weight:900;"
                     on.click (fun _ -> dispatch StopFocusTimer)
                     text "Stop Timer"
                 }
 
                 button {
-                    attr.style "padding:16px 34px; border:none; border-radius:14px; background:#2563eb; color:white; font-size:18px; font-weight:900; cursor:pointer;"
+                    attr.style "padding:18px; border:none; border-radius:16px; background:#2563eb; color:white; font-size:20px; font-weight:900; cursor:pointer; grid-column:span 2;"
                     on.click (fun _ -> dispatch ResetFocusTimer)
                     text "Reset Timer"
                 }
@@ -1256,10 +1256,11 @@ let focusPage model dispatch =
             if model.focusSessionCompleted then
                 div {
                     attr.style "margin-top:28px; padding:18px; border-radius:14px; background:#14532d; color:#dcfce7; font-weight:800;"
-                    text ("Focus session completed! +" + string focusReward + " XP earned ⚔️")
+                    text (sprintf "Focus session completed! +%d XP earned ⚔️" focusReward)
                 }
         }
     }
+                
 let statsPage model =
     let completed =
         model.quests |> List.filter (fun quest -> quest.completed) |> List.length

@@ -181,31 +181,31 @@ Renders the UI dynamically based on the current state.
 
 ### Dashboard
 
-_Add screenshot here_
+![Dashboard](screenshots/dashboard.png)
 
 ### Focus Session
 
-_Add screenshot here_
+![Focus Session](screenshots/focus-session.png)
 
-### Shop
+### Reward Shop
 
-_Add screenshot here_
+![Reward Shop](screenshots/shop.png)
 
 ### Inventory
 
-_Add screenshot here_
+![Inventory](screenshots/inventory.png)
 
 ### Boss Battle
 
-_Add screenshot here_
+![Boss Battle](screenshots/boss-battle.png)
 
 ### Skill Tree
 
-_Add screenshot here_
+![Skill Tree](screenshots/skills.png)
 
 ### Profile Page
 
-_Add screenshot here_
+![Profile Page](screenshots/profile.png)
 
 ---
 

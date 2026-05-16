@@ -16,6 +16,12 @@ A gamified productivity web application built with F#, Bolero and ASP.NET Core.
 
 ---
 
+## Responsive Support
+
+The application was optimized for both desktop and mobile layouts.
+
+---
+
 ## About the Project
 
 FocusQuest is a productivity and focus application designed to turn studying, coding and deep work into an RPG-like experience.
@@ -106,7 +112,7 @@ The application combines productivity tools with game mechanics to create a more
 - Elmish
 - ASP.NET Core
 - .NET 8
-- SQLite foundation
+- SQLite
 - HTML & CSS
 - WebAssembly
 
@@ -265,7 +271,7 @@ http://localhost:5032
 
 ## Current Status
 
-The project is actively developed.
+The project reached the Omega milestone and is currently feature complete.
 
 Completed systems:
 
@@ -283,7 +289,6 @@ Completed systems:
 
 Planned improvements:
 
-- Live deployment
 - Save/load persistence
 - Mobile UI polish
 - Additional boss types

@@ -116,6 +116,30 @@ The application combines productivity tools with game mechanics to create a more
 
 The application follows the **Model-View-Update (MVU)** architecture.
 
+## Omega Scope 
+
+This Omega version extends the original FocusQuest idea into a larger RPG-inspired productivity web application. 
+
+Compared to a basic task tracker, the project includes multiple interconnected systems: 
+
+- player login and class selection 
+- XP and level progression 
+- daily quests 
+- focus timer 
+- achievements 
+- reward shop 
+- inventory 
+- random loot rewards 
+- boss battles 
+- skill tree upgrades 
+- unlockable titles 
+- profile management 
+- statistics and history pages 
+
+The main goal of the Omega version was to create a more complete, polished and feature-rich web application with a clear progression loop and multi-page user experience. 
+
+---
+
 ### Model
 
 Stores the full application state:
